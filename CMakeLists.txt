@@ -21,6 +21,7 @@ include(${Slicer_USE_FILE})
 add_subdirectory(EpilepsyCppModule)
 add_subdirectory(EpilepsyPythonModule)
 add_subdirectory(EpilepsyCLI)
+add_subdirectory(EpileptogenicFocusDetection)
 ## NEXT_MODULE
 
 #-----------------------------------------------------------------------------
