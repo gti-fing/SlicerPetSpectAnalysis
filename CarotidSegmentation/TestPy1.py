@@ -7,17 +7,18 @@ import sys, string
 
 class TestPy1:
   def __init__(self, parent):
-    parent.title = "Test1"
+    parent.title = "Test2"
     parent.categories = ["Examples"]
     parent.dependencies = []
     parent.contributors = ["Idk"] # replace with "Firstname Lastname (Org)"
     parent.helpText = """
-    Test: A partir de un multivolume extrae la frame seleccionada, no necesita scalar volume de referencia/
-    hello button activa la extraccion.
+    Test: A partir de un multivolume acumula hasta frame seleccionada, no necesita scalar volume de referencia/
+    hello button activa la extraccion. Falta guardar data de cada volume como array y calcular la media para cada frame.
     """
     parent.acknowledgementText = """
     idk""" # replace with organization, grant and thanks.
     self.parent = parent
+
 
 #
 # qHelloPythonWidget
@@ -102,8 +103,8 @@ class TestPy1Widget:
     slicer.mrmlScene.AddNode(frameVolume)
     
     
+    
     nComponents = self.__mvNode.GetNumberOfFrames()
-    #frameId = 6
     f=int(self.__veInitial.value)
     frameId = min(f,nComponents-1)
     
@@ -117,17 +118,31 @@ class TestPy1Widget:
         frameVolume.SetIJKToRASMatrix(ijk2ras)
     
     mvImage = self.__mvNode.GetImageData()
-    extract = vtk.vtkImageExtractComponents()
-    extract.SetInput(mvImage)
-    extract.SetComponents(frameId)
-    extract.Update()
     
+
+    for i in range(nComponents-1):
+      extract = vtk.vtkImageExtractComponents()
+      extract.SetInput(mvImage)
+      extract.SetComponents(i)
+      extract.Update()
+      
+      if i == 0:
+          frameVolume.SetAndObserveImageData(extract.GetOutput())
+      elif i < frameId+1 :
+          s=vtk.vtkImageMathematics()
+          s.SetOperationToAdd()  
+          s.SetInput1(frameVolume.GetImageData())
+          s.SetInput2(extract.GetOutput())
+          s.Update()
+          frameVolume.SetAndObserveImageData(s.GetOutput())
+
+          
     frameName = 'Holaaa'
     frameVolume.SetName(frameName)
     
-    frameVolume.SetAndObserveImageData(extract.GetOutput())
-    displayNode = frameVolume.GetDisplayNode()
+
     
     selectionNode = slicer.app.applicationLogic().GetSelectionNode()
     selectionNode.SetReferenceActiveVolumeID(frameVolume.GetID())
     slicer.app.applicationLogic().PropagateVolumeSelection(0)
+
