@@ -53,7 +53,7 @@ class CropmvWidget:
     inputFrameLayout = qt.QFormLayout(self.inputFrame)
     self.layout.addWidget(self.inputFrame)
     
-    #Descubriendo que seria esto#
+    #Nodo del multivolume
     self.__mvNode = None
     
     #Entrada multivolume
