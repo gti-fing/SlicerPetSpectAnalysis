@@ -1,5 +1,5 @@
 from __main__ import vtk, qt, ctk, slicer
-import sys, string
+import sys, string, numpy
 
 #
 # HelloPython
@@ -53,7 +53,7 @@ class CropmvWidget:
     inputFrameLayout = qt.QFormLayout(self.inputFrame)
     self.layout.addWidget(self.inputFrame)
     
-    #Nodo del multivolume
+    #Descubriendo que seria esto#
     self.__mvNode = None
     
     #Entrada multivolume
@@ -79,7 +79,6 @@ class CropmvWidget:
     self.__veInitial = qt.QDoubleSpinBox()
     self.__veInitial.value = 0
     inputFrameLayout.addRow(label, self.__veInitial)
-    
     
     ###PARTE HELLO WORLD## BUTTON DE ACTIVACION
          
@@ -113,6 +112,21 @@ class CropmvWidget:
 
     # Set local var as instance attribute
     self.helloWorldButton = helloWorldButton
+    
+    #Diccionarios y Arrays#
+    self.CropMean=[]
+    self.dictCrop={}
+    #Indice de pico
+    self.Ip = None
+    
+    #ROI Acumulada hasta Indice de pico
+    self.acROI = None 
+    
+    #Inicio la variables Componentes (numero de frames)
+    self.nComponents = None
+    
+    #Nodo prueba 
+    #self.meanROI = slicer.vtkMRMLDoubleArrayNode()
 
   def onHelloWorldButtonClicked(self):
     print "Hello World !"
@@ -126,9 +140,9 @@ class CropmvWidget:
     frameVolume.SetScene(slicer.mrmlScene)
     slicer.mrmlScene.AddNode(frameVolume)
         
-    nComponents = self.__mvNode.GetNumberOfFrames()
+    self.nComponents = self.__mvNode.GetNumberOfFrames()
     f=int(self.__veInitial.value)
-    frameId = min(f,nComponents-1)
+    frameId = min(f,self.nComponents-1)
     
     ras2ijk = vtk.vtkMatrix4x4()
     ijk2ras = vtk.vtkMatrix4x4()
@@ -140,10 +154,10 @@ class CropmvWidget:
         frameVolume.SetIJKToRASMatrix(ijk2ras)
     
     mvImage = self.__mvNode.GetImageData()
-    dictCrop = {}
+    #dictCrop = {}
     #Medias de la ROI para cada frame#
-    CropMean = {}
-    for i in range(nComponents-1):
+    #CropMean = {}
+    for i in range(self.nComponents-1):
       extract = vtk.vtkImageExtractComponents()
       extract.SetInput(mvImage)
       extract.SetComponents(i)
@@ -172,9 +186,11 @@ class CropmvWidget:
       NameOut="crop_f"+str(i)
       output.SetName(NameOut)
       #Agrego la frame al diccionario#
-      dictCrop.update({i:output})
+      self.dictCrop.update({i:output})
       Data=slicer.util.array(output.GetID())
-      CropMean.update({i:Data.mean()})
+      self.CropMean.append(Data.mean())
+      
+    self.procesarData()     
 
   def onHelloWorldButtonClicked2(self):
     print "Ver un frame para marcar ROI"
@@ -186,9 +202,9 @@ class CropmvWidget:
     frameVolume.SetScene(slicer.mrmlScene)
     slicer.mrmlScene.AddNode(frameVolume)
         
-    nComponents = self.__mvNode.GetNumberOfFrames()
+    self.nComponents = self.__mvNode.GetNumberOfFrames()
     f=int(self.__veInitial.value)
-    frameId = min(f,nComponents-1)
+    frameId = min(f,self.nComponents-1)
     
     ras2ijk = vtk.vtkMatrix4x4()
     ijk2ras = vtk.vtkMatrix4x4()
@@ -203,9 +219,40 @@ class CropmvWidget:
     extract.SetComponents(frameId)
     extract.Update()
     frameVolume.SetAndObserveImageData(extract.GetOutput())
+    
     #DEBO TENER EL NODO DE INPUT EN LA ESCENA PARA PODER USAR EL CROP#
     frameName = 'Frame_ref'+str(frameId)
     frameVolume.SetName(frameName)
     selectionNode = slicer.app.applicationLogic().GetSelectionNode()
     selectionNode.SetReferenceActiveVolumeID(frameVolume.GetID())
+    slicer.app.applicationLogic().PropagateVolumeSelection(0) 
+   
+  def procesarData(self):  
+    
+    #Determinar indice del pico a partir de la media de la ROI en las primeras frames
+    firstFr = 8  
+    cropM = numpy.array(self.CropMean)
+    cropMf = cropM[0:firstFr]
+    self.Ip = cropMf.argmax() 
+    
+    #Acumular ROIs hasta Ip
+    self.acROI = self.dictCrop.get(0)
+    
+    if self.Ip>0 :
+      for i in range(self.Ip-1) :
+        acROI2 = self.dictCrop.get(i+1)
+        s=vtk.vtkImageMathematics()
+        s.SetOperationToAdd()  
+        s.SetInput1(self.acROI.GetImageData())
+        s.SetInput2(acROI2.GetImageData())
+        s.Update()
+        self.acROI.SetAndObserveImageData(s.GetOutput())
+    
+    #SOBRE ESTA ROI ACUMULADA SE APLICA EL OTSU #
+    ROIname="ROIac"
+    self.acROI.SetName(ROIname)
+    selectionNode = slicer.app.applicationLogic().GetSelectionNode()
+    selectionNode.SetReferenceActiveVolumeID(self.acROI.GetID())
     slicer.app.applicationLogic().PropagateVolumeSelection(0)
+    
+    #Aplicar OTSU
