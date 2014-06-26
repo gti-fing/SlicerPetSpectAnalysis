@@ -388,6 +388,11 @@ class EpileptogenicFocusDetectionLogic:
       slicer.mrmlScene.AddNode(registrationTransformNode)
       parameters["linearTransform"] = registrationTransformNode.GetID()
       parameters["initializeTransformMode"] = "useCenterOfHeadAlign"
+      
+      outputVolumeNode = slicer.vtkMRMLScalarVolumeNode()
+      slicer.mrmlScene.AddNode(outputVolumeNode)
+      outputVolumeNode.SetName(movingVolumeNode.GetName()+"_"+fixedVolumeNode.GetName())
+      parameters["outputVolume"] = outputVolumeNode.GetID()
       brainsfit = slicer.modules.brainsfit
       
       # run the registration
