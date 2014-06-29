@@ -234,7 +234,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
     #self.step1_showDicomBrowserButton.connect('clicked()', self.logic.onDicomLoad)  
 
   def setup_Step2_Registration(self):
-    # Step 2: OBI to PLANCT registration panel
+    # Step 2: Ictal to Basal and Basal to MRI registration panel
     self.step2_RegistrationCollapsibleButton.setProperty('collapsedHeight', 4)
     self.step2_RegistrationCollapsibleButton.text = "2. Registration"
     self.sliceletPanelLayout.addWidget(self.step2_RegistrationCollapsibleButton)
@@ -320,10 +320,67 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.step3_fociDetectionLayout.setSpacing(4)
 
     # Step 3/A): Select OBI fiducials on OBI volume
-    self.step3A_SISCOMDetectionButton = ctk.ctkCollapsibleButton()
-    self.step3A_SISCOMDetectionButton.setProperty('collapsedHeight', 4)
-    self.step3A_SISCOMDetectionButton.text = "3/A) SISCOM method"
-    self.step3_fociDetectionLayout.addWidget(self.step3A_SISCOMDetectionButton)
+    self.step3A_SISCOMDetectionCollapsibleButton = ctk.ctkCollapsibleButton()
+    self.step3A_SISCOMDetectionCollapsibleButton.setProperty('collapsedHeight', 4)
+    self.step3A_SISCOMDetectionCollapsibleButton.text = "3/A) SISCOM method"
+    self.step3_fociDetectionLayout.addWidget(self.step3A_SISCOMDetectionCollapsibleButton)
+    self.step3A_SISCOMDetectionCollapsibleButtonLayout = qt.QFormLayout(self.step3A_SISCOMDetectionCollapsibleButton)
+    self.step3A_SISCOMDetectionCollapsibleButtonLayout.setContentsMargins(12,4,4,4)
+    self.step3A_SISCOMDetectionCollapsibleButtonLayout.setSpacing(4)
+    
+    # Basal volume node selector
+    self.basalVolumeSISCOMNodeSelector = slicer.qMRMLNodeComboBox()
+    self.basalVolumeSISCOMNodeSelector.nodeTypes = ( ("vtkMRMLScalarVolumeNode"), "" )
+    self.basalVolumeSISCOMNodeSelector.addAttribute( "vtkMRMLScalarVolumeNode", "LabelMap", 0 )
+    self.basalVolumeSISCOMNodeSelector.addEnabled = False
+    self.basalVolumeSISCOMNodeSelector.removeEnabled = False
+    self.basalVolumeSISCOMNodeSelector.setMRMLScene( slicer.mrmlScene )
+    self.basalVolumeSISCOMNodeSelector.setToolTip( "Pick the basal volume for a-contrario detection." )
+    self.step3A_SISCOMDetectionCollapsibleButtonLayout.addRow('Basal volume: ', self.basalVolumeSISCOMNodeSelector)
+
+    # Ictal volume node selector
+    self.ictalVolumeSISCOMNodeSelector = slicer.qMRMLNodeComboBox()
+    self.ictalVolumeSISCOMNodeSelector.nodeTypes = ( ("vtkMRMLScalarVolumeNode"), "" )
+    self.ictalVolumeSISCOMNodeSelector.addAttribute( "vtkMRMLScalarVolumeNode", "LabelMap", 0 )
+    self.ictalVolumeSISCOMNodeSelector.addEnabled = False
+    self.ictalVolumeSISCOMNodeSelector.removeEnabled = False
+    self.ictalVolumeSISCOMNodeSelector.setMRMLScene( slicer.mrmlScene )
+    self.ictalVolumeSISCOMNodeSelector.setToolTip( "Pick the ictal volume for a-contrario detection." )
+    self.step3A_SISCOMDetectionCollapsibleButtonLayout.addRow('Ictal volume: ', self.ictalVolumeSISCOMNodeSelector)
+  
+    # MRI node selector
+    self.MRISISCOMSelector = slicer.qMRMLNodeComboBox()
+    self.MRISISCOMSelector.nodeTypes = ( ("vtkMRMLScalarVolumeNode"), "" )
+    self.MRISISCOMSelector.addAttribute( "vtkMRMLScalarVolumeNode", "LabelMap", 0 )
+    self.MRISISCOMSelector.addEnabled = False
+    self.MRISISCOMSelector.removeEnabled = False
+    self.MRISISCOMSelector.setMRMLScene( slicer.mrmlScene )
+    self.MRISISCOMSelector.setToolTip( "Pick the MRI volume for a-contrario detection." )
+    self.step3A_SISCOMDetectionCollapsibleButtonLayout.addRow('MRI volume: ', self.MRISISCOMSelector)
+    
+    #A-contrario detection button
+    self.SISCOMDetectionButton = qt.QPushButton("Perform subtraction of images")
+    self.SISCOMDetectionButton.toolTip = "Perform the subtraction of the images: ictal - basal"
+    self.SISCOMDetectionButton.name = "aContrarioDetectionButton"
+    self.step3A_SISCOMDetectionCollapsibleButtonLayout.addRow('Foci detection: ', self.SISCOMDetectionButton)
+    
+    # SISCOM Threshold frame
+    self.thresholdSISCOMFrame=qt.QFrame()
+    self.thresholdSISCOMFrame.setLayout(qt.QHBoxLayout())
+    self.thresholdSISCOMLayout=self.thresholdSISCOMFrame.layout()
+    
+    self.thresholdSISCOMSlider =ctk.ctkDoubleRangeSlider()
+    self.thresholdSISCOMSlider.orientation = 1  # Horizontal
+    self.thresholdSISCOMSlider.setEnabled('False')
+    self.thresholdSISCOM_minimum=qt.QLabel()
+    self.thresholdSISCOM_maximum=qt.QLabel()
+    self.thresholdSISCOMLayout.addWidget(self.thresholdSISCOM_minimum)
+    self.thresholdSISCOMLayout.addWidget(self.thresholdSISCOMSlider)
+    self.thresholdSISCOMLayout.addWidget(self.thresholdSISCOM_maximum)
+    
+    self.step3A_SISCOMDetectionCollapsibleButtonLayout.addRow('Visualization threshold: ', self.thresholdSISCOMFrame)
+    
+
 
    
     # Step 3/C): Select MEASURED fiducials on MEASURED dose volume
@@ -331,24 +388,61 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.step3B_AContrarioDetectionCollapsibleButton.setProperty('collapsedHeight', 4)
     self.step3B_AContrarioDetectionCollapsibleButton.text = "3/B) A Contrario method"
     self.step3_fociDetectionLayout.addWidget(self.step3B_AContrarioDetectionCollapsibleButton)
+    self.step3B_AContrarioDetectionCollapsibleButtonLayout = qt.QFormLayout(self.step3B_AContrarioDetectionCollapsibleButton)
+    self.step3B_AContrarioDetectionCollapsibleButtonLayout.setContentsMargins(12,4,4,4)
+    self.step3B_AContrarioDetectionCollapsibleButtonLayout.setSpacing(4)
+    
+    # Basal volume node selector
+    self.basalVolumeAContrarioNodeSelector = slicer.qMRMLNodeComboBox()
+    self.basalVolumeAContrarioNodeSelector.nodeTypes = ( ("vtkMRMLScalarVolumeNode"), "" )
+    self.basalVolumeAContrarioNodeSelector.addAttribute( "vtkMRMLScalarVolumeNode", "LabelMap", 0 )
+    self.basalVolumeAContrarioNodeSelector.addEnabled = False
+    self.basalVolumeAContrarioNodeSelector.removeEnabled = False
+    self.basalVolumeAContrarioNodeSelector.setMRMLScene( slicer.mrmlScene )
+    self.basalVolumeAContrarioNodeSelector.setToolTip( "Pick the basal volume for a-contrario detection." )
+    self.step3B_AContrarioDetectionCollapsibleButtonLayout.addRow('Basal volume: ', self.basalVolumeAContrarioNodeSelector)
 
+    # Ictal volume node selector
+    self.ictalVolumeAContrarioNodeSelector = slicer.qMRMLNodeComboBox()
+    self.ictalVolumeAContrarioNodeSelector.nodeTypes = ( ("vtkMRMLScalarVolumeNode"), "" )
+    self.ictalVolumeAContrarioNodeSelector.addAttribute( "vtkMRMLScalarVolumeNode", "LabelMap", 0 )
+    self.ictalVolumeAContrarioNodeSelector.addEnabled = False
+    self.ictalVolumeAContrarioNodeSelector.removeEnabled = False
+    self.ictalVolumeAContrarioNodeSelector.setMRMLScene( slicer.mrmlScene )
+    self.ictalVolumeAContrarioNodeSelector.setToolTip( "Pick the ictal volume for a-contrario detection." )
+    self.step3B_AContrarioDetectionCollapsibleButtonLayout.addRow('Ictal volume: ', self.ictalVolumeAContrarioNodeSelector)
+
+  
+    # MRI node selector
+    self.MRIAContrarioSelector = slicer.qMRMLNodeComboBox()
+    self.MRIAContrarioSelector.nodeTypes = ( ("vtkMRMLScalarVolumeNode"), "" )
+    self.MRIAContrarioSelector.addAttribute( "vtkMRMLScalarVolumeNode", "LabelMap", 0 )
+    self.MRIAContrarioSelector.addEnabled = False
+    self.MRIAContrarioSelector.removeEnabled = False
+    self.MRIAContrarioSelector.setMRMLScene( slicer.mrmlScene )
+    self.MRIAContrarioSelector.setToolTip( "Pick the MRI volume for a-contrario detection." )
+    self.step3B_AContrarioDetectionCollapsibleButtonLayout.addRow('MRI volume: ', self.MRIAContrarioSelector)
+
+    #A-contrario detection button
+    self.aContrarioDetectionButton = qt.QPushButton("Perform a-contrario detection")
+    self.aContrarioDetectionButton.toolTip = "Perform a-contrario detection"
+    self.aContrarioDetectionButton.name = "aContrarioDetectionButton"
+    self.step3B_AContrarioDetectionCollapsibleButtonLayout.addRow('Foci detection: ', self.aContrarioDetectionButton)
 
 
     # Add substeps in a button group
     self.step3D_FociDetectionCollapsibleButtonGroup = qt.QButtonGroup()
-    self.step3D_FociDetectionCollapsibleButtonGroup.addButton(self.step3A_SISCOMDetectionButton)
+    self.step3D_FociDetectionCollapsibleButtonGroup.addButton(self.step3A_SISCOMDetectionCollapsibleButton)
     self.step3D_FociDetectionCollapsibleButtonGroup.addButton(self.step3B_AContrarioDetectionCollapsibleButton)
 
     
     # Connections
-    #self.step3_fociDetectionCollapsibleButton.connect('contentsCollapsed(bool)', self.onStep3_fociDetectionSelected)
-    #self.step3A_SISCOMDetectionButton.connect('contentsCollapsed(bool)', self.onStep3A_ObiFiducialCollectionSelected)
-    #self.step3B_AContrarioDetectionCollapsibleButton.connect('contentsCollapsed(bool)', self.onStep3C_ObiFiducialCollectionSelected)
-    #self.step3B_loadMeasuredDataButton.connect('clicked()', self.onLoadMeasuredData)
-    #self.step3D_registerMeasuredToObiButton.connect('clicked()', self.onFociDetection)
+    self.aContrarioDetectionButton.connect('clicked()', self.onAContrarioDetectionButtonClicked)
+    self.SISCOMDetectionButton.connect('clicked()', self.onSubtractionDetectionButtonClicked)
+    self.thresholdSISCOMSlider.connect('positionsChanged(double,double)', self.onThresholdSISCOMSliderClicked)
 
     # Open OBI fiducial selection panel when step is first opened
-    self.step3A_SISCOMDetectionButton.setProperty('collapsed', False)
+    self.step3A_SISCOMDetectionCollapsibleButton.setProperty('collapsed', False)
 
 
 
@@ -358,65 +452,147 @@ class EpileptogenicFocusDetectionSlicelet(object):
   def onLoadBasalVolumeButtonClicked(self):
     if slicer.app.ioManager().openAddVolumeDialog():
       self.logic.setActiveVolumeAsBasal();
-
+#------------------------------------------------------------------------------------------------    
   def onRotateBasalISButtonClicked(self):
     self.logic.rotateBasal('IS');
-
+#------------------------------------------------------------------------------------------------    
   def onRotateBasalAPButtonClicked(self):
     self.logic.rotateBasal('AP');  
-
+#------------------------------------------------------------------------------------------------    
   def onRotateBasalLRButtonClicked(self):
     self.logic.rotateBasal('LR');
-
+#------------------------------------------------------------------------------------------------    
   def onLoadIctalVolumeButtonClicked(self):
     if slicer.app.ioManager().openAddVolumeDialog():
       self.logic.setActiveVolumeAsIctal();
-
+#------------------------------------------------------------------------------------------------    
   def onRotateIctalISButtonClicked(self):
     self.logic.rotateIctal('IS');
-
+#------------------------------------------------------------------------------------------------    
   def onRotateIctalAPButtonClicked(self):
     self.logic.rotateIctal('AP');  
-
+#------------------------------------------------------------------------------------------------    
   def onRotateIctalLRButtonClicked(self):
     self.logic.rotateIctal('LR');
-
+#------------------------------------------------------------------------------------------------    
   def onLoadMRIVolumeButtonClicked(self):
     if slicer.app.ioManager().openAddVolumeDialog():
       self.logic.setActiveVolumeAsMRI();
-
+#------------------------------------------------------------------------------------------------    
   def onRotateMRIISButtonClicked(self):
     self.logic.rotateMRI('IS');
-
+#------------------------------------------------------------------------------------------------    
   def onRotateMRIAPButtonClicked(self):
     self.logic.rotateMRI('AP');  
-
+#------------------------------------------------------------------------------------------------    
   def onRotateMRILRButtonClicked(self):
     self.logic.rotateMRI('LR');
-    
+#------------------------------------------------------------------------------------------------        
   ### STEP 2 #######
   def onCompareBasalIctalMRIButtonClicked(self):
     self.layoutWidget.setLayout(self.customLayoutGridView3x3)  
     self.logic.compareBasalIctalMRI()  
     
-      
+#------------------------------------------------------------------------------------------------          
   def onRegisterIctalToBasalButtonClicked(self):  
     if self.logic.registerIctalToBasal():    
       print('Registrooooooo!')
       
-      
+#------------------------------------------------------------------------------------------------          
   def onComputeBasalAndIctalMaskButtonClicked(self):
     self.logic.computeBasalIctalMask()  
 
-    
+#------------------------------------------------------------------------------------------------    
   def onCheckBasalAndIctalMaskButtonClicked(self):
     self.logic.compareBasalIctalMask()    
    
-  
+ #--------------------------------------------------------------------------------------------- 
   def onRegisterBasalToMRIButtonClicked(self):    
     if self.logic.registerBasalToMRI():
-      print('Registrooooooo!')    
-
+      print('Registrooooooo!')   
+#------------------------------------------------------------------------------------------------------------------      
+  def onSubtractionDetectionButtonClicked(self): 
+    basalVolumeNode = self.basalVolumeSISCOMNodeSelector.currentNode() 
+    ictalVolumeNode = self.ictalVolumeSISCOMNodeSelector.currentNode()
+    subtractionOutputVolumeNode=slicer.vtkMRMLScalarVolumeNode()
+    slicer.mrmlScene.AddNode(subtractionOutputVolumeNode)
+    subtractionOutputVolumeNode.SetName("Ictal-Basal Subtraction") 
+    result= self.logic.subtractImages(ictalVolumeNode,basalVolumeNode, subtractionOutputVolumeNode) 
+    if result==True:
+      data=slicer.util.array(subtractionOutputVolumeNode.GetName())
+      minimumValue = data.min()
+      maximumValue = data.max()
+      self.thresholdSISCOMSlider.minimum = minimumValue
+      self.thresholdSISCOMSlider.maximum = maximumValue
+      self.thresholdSISCOMSlider.setEnabled('True')
+      self.thresholdSISCOM_minimum.setText(str(minimumValue))
+      self.thresholdSISCOM_maximum.setText(str(maximumValue))
+      dnode=subtractionOutputVolumeNode.GetDisplayNode()
+      dnode.SetAndObserveColorNodeID('vtkMRMLColorTableNodeWarm1')
+      backgroundVolumeNode = ictalVolumeNode
+      foregroundVolumeNode = subtractionOutputVolumeNode
+      self.showActivations(backgroundVolumeNode, foregroundVolumeNode)
+       
+ #---------------------------------------------------------------------------------------------------------------
+ 
+  def onThresholdSISCOMSliderClicked(self,minValue,maxValue):  
+    print 'positions changed!'  
+    print(minValue,maxValue) 
+    node = slicer.util.getNode("Ictal-Basal Subtraction")  
+    dnode=node.GetDisplayNode()
+    dnode.SetAndObserveColorNodeID('vtkMRMLColorTableNodeWarm1')
+    dnode.SetLowerThreshold(minValue)
+    dnode.SetUpperThreshold(maxValue)
+    dnode.ApplyThresholdOn()
+    self.thresholdSISCOM_minimum.setText(str(minValue))
+    self.thresholdSISCOM_maximum.setText(str(maxValue))
+      
+ #---------------------------------------------------------------------------------------------------------------     
+  def onAContrarioDetectionButtonClicked(self):   
+    basalVolumeNode = self.basalVolumeAContrarioNodeSelector.currentNode()
+    ictalVolumeNode = self.ictalVolumeAContrarioNodeSelector.currentNode()
+    diffOutputVolumeNode=slicer.vtkMRMLScalarVolumeNode()
+    slicer.mrmlScene.AddNode(diffOutputVolumeNode)
+    diffOutputVolumeNode.SetName("Diff Output Volume Node")
+    nfaOutputVolumeNode=slicer.vtkMRMLScalarVolumeNode()
+    slicer.mrmlScene.AddNode(nfaOutputVolumeNode)
+    nfaOutputVolumeNode.SetName("NFA Output Volume Node")
+    result = self.logic.detectFociAContrario(basalVolumeNode,ictalVolumeNode, diffOutputVolumeNode, nfaOutputVolumeNode)
+   
+    dnode=diffOutputVolumeNode.GetDisplayNode()
+    dnode.SetAndObserveColorNodeID('vtkMRMLColorTableNodeWarm1')
+    dnode.SetLowerThreshold(1.01)
+    dnode.ApplyThresholdOn()
+    
+    #mriVolumeNode = self.MRIAContrarioSelector.currentNode()
+    #if mriVolumeNode is not None:
+    #  backgroundVolumeNode = ictalVolumeNode
+    #else:
+    #  backgroundVolumeNode = mriVolumeNode
+    
+    backgroundVolumeNode = ictalVolumeNode
+    foregroundVolumeNode = diffOutputVolumeNode
+    self.showActivations(backgroundVolumeNode, foregroundVolumeNode)
+      
+#----------------------------------------------------------------------------------------------
+  def showActivations(self,backgroundVolumeNode,foregroundVolumeNode):
+    # Set the background volume 
+    redWidgetCompNode = slicer.mrmlScene.GetNodeByID("vtkMRMLSliceCompositeNodeRed")
+    redWidgetCompNode.SetBackgroundVolumeID(backgroundVolumeNode.GetID())
+    redWidgetCompNode.SetForegroundVolumeID(foregroundVolumeNode.GetID())
+    redWidgetCompNode.SetForegroundOpacity(1)
+    
+    greenWidgetCompNode = slicer.mrmlScene.GetNodeByID("vtkMRMLSliceCompositeNodeGreen")
+    greenWidgetCompNode.SetBackgroundVolumeID(backgroundVolumeNode.GetID())
+    greenWidgetCompNode.SetForegroundVolumeID(foregroundVolumeNode.GetID())
+    greenWidgetCompNode.SetForegroundOpacity(1)
+    
+    yellowWidgetCompNode = slicer.mrmlScene.GetNodeByID("vtkMRMLSliceCompositeNodeYellow")
+    yellowWidgetCompNode.SetBackgroundVolumeID(backgroundVolumeNode.GetID())
+    yellowWidgetCompNode.SetForegroundVolumeID(foregroundVolumeNode.GetID())
+    yellowWidgetCompNode.SetForegroundOpacity(1)  
+    
+#-----------------------------------------------------------------------------------------------    
   #
   # Event handler functions
   #
