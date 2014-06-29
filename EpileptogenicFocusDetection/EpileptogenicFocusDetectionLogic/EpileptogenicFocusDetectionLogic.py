@@ -360,7 +360,7 @@ class EpileptogenicFocusDetectionLogic:
 
   # ---------------------------------------------------------------------------
   def registerVolumes(self, fixedVolumeName, fixedTransformName, movingVolumeName, movingTransformName, registrationTransformName):
-      self.Registered = False
+      #self.Registered = False
       
       # get the nodes
       fixedTransformNode = slicer.util.getNode(fixedTransformName)
@@ -396,9 +396,17 @@ class EpileptogenicFocusDetectionLogic:
       brainsfit = slicer.modules.brainsfit
       
       # run the registration
-      self.Registered = slicer.cli.run(brainsfit, None, parameters, True)  # El ultimo true es para que espere hasta la finalizacion
+      cliBrainsFitRigidNode = slicer.cli.run(brainsfit, None, parameters)  
+      #cliBrainsFitRigidNode = slicer.cli.run(brainsfit, None, parameters, True)  # El ultimo true es para que espere hasta la finalizacion
       
-      if not self.Registered:
+      waitCount = 0
+      while cliBrainsFitRigidNode.GetStatusString() != 'Completed' and waitCount < 20:
+        self.delayDisplay( "Register " + movingVolumeNode.GetName()+ "to " + fixedVolumeNode.GetName() +  "... %d" % waitCount )
+        waitCount += 1
+      self.delayDisplay("Register " + movingVolumeNode.GetName()+ "to " + fixedVolumeNode.GetName() + " finished")
+      qt.QApplication.restoreOverrideCursor()
+      
+      if not cliBrainsFitRigidNode:
          slicer.mrmlScene.RemoveNode(registrationTransformNode.GetID()) 
          print('Registration failed: Brainsfit module failed')
       else:  
@@ -406,7 +414,7 @@ class EpileptogenicFocusDetectionLogic:
          movingVolumeNode.SetAndObserveTransformNodeID(registrationTransformNode.GetID())
          pass
          
-      return self.Registered
+      return cliBrainsFitRigidNode
   
   # ---------------------------------------------------------------------------
   def otsuThresholdVolume(self, inputVolumeName, maskVolumeName, thresholdedVolumeName, insideValue=0, outsideValue=1,numberOfBins=128):
@@ -507,6 +515,56 @@ class EpileptogenicFocusDetectionLogic:
     pass
   
   # ---------------------------------------------------------------------------
-  def detectFociDifferential(self,basalVolumeName,ictalVolumeName):
-    #TODO
+  def subtractImages(self,ictalVolumeNode,basalVolumeNode, outputVolumeNode):
+    parameters = {} 
+    parameters['inputVolume1'] = ictalVolumeNode.GetID() 
+    parameters['inputVolume2'] = basalVolumeNode.GetID() 
+    parameters['outputVolume'] = outputVolumeNode.GetID() 
+    clinode = slicer.cli.run( slicer.modules.subtractscalarvolumes, None, parameters, wait_for_completion=True )
+    if not clinode:
+      print('Differential detection failed')
+      return False
+    else:
+      return True
+
+  # ---------------------------------------------------------------------------
+  def detectFociAContrario(self,basalVolumeNode,ictalVolumeNode, diffOutputVolumeNode, nfaOutputVolumeNode):
+    # setup the CLI module
+    parameters = {}    
+    # INPUT
+    parameters["ictalinputvolume"] = ictalVolumeNode.GetID();
+    parameters["interictalinputvolume"] = basalVolumeNode.GetID();
+    # OUTPUT
+    parameters["diffoutputvolume"] = diffOutputVolumeNode.GetID();
+    parameters["nfaoutputvolume"] = nfaOutputVolumeNode.GetID();
+    
+    acontrario_detection_module = slicer.modules.matlabbridge_acontrario_detection
+
+    clinode=slicer.cli.run(acontrario_detection_module, None, parameters, True) # El ultimo true es para que espere hasta la finalizacion
+      
+    if not clinode:
+      print('A contrario detection failed')
+      return False
+    else:
+      return True
     pass
+
+  # ---------------------------------------------------------------------------
+  # Utility functions
+  # ---------------------------------------------------------------------------
+  def delayDisplay(self,message,msec=1000):
+    """This utility method displays a small dialog and waits.
+    This does two things: 1) it lets the event loop catch up
+    to the state of the test so that rendering and widget updates
+    have all taken place before the test continues and 2) it
+    shows the user/developer/tester the state of the test
+    so that we'll know when it breaks.
+    """
+    print(message)
+    self.info = qt.QDialog()
+    self.infoLayout = qt.QVBoxLayout()
+    self.info.setLayout(self.infoLayout)
+    self.label = qt.QLabel(message,self.info)
+    self.infoLayout.addWidget(self.label)
+    qt.QTimer.singleShot(msec, self.info.close)
+    self.info.exec_()
