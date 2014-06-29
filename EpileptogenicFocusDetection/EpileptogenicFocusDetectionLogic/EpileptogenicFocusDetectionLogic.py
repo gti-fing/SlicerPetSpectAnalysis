@@ -505,3 +505,61 @@ class EpileptogenicFocusDetectionLogic:
   def detectFociDifferential(self,basalVolumeName,ictalVolumeName):
     #TODO
     pass
+  # ---------------------------------------------------------------------------
+
+  # ---------------------------------------------------------------------------
+  def customCompareLayout(self, rows, cols, customLayoutNumber):
+    # Grid compare viewers
+    compareViewGrid = "<layout type=\"vertical\" split=\"true\" >" +"\n" \
+    #  " <item>" +"\n" \
+    #  "  <layout type=\"horizontal\">" +"\n" \
+    #  "   <item>" +"\n" \
+    #  "    <view class=\"vtkMRMLSliceNode\" singletontag=\"Red\">" +"\n" \
+    #  "     <property name=\"orientation\" action=\"default\">Axial</property>" +"\n" \
+    #  "     <property name=\"viewlabel\" action=\"default\">R</property>" +"\n" \
+    #  "     <property name=\"viewcolor\" action=\"default\">#F34A33</property>" +"\n" \
+    #  "    </view>" +"\n" \
+    #  "   </item>" +"\n" \
+    #  "   <item>" +"\n" \
+    #  "    <view class=\"vtkMRMLViewNode\" singletontag=\"1\"/>" +"\n" \
+    #  "   </item>" +"\n" \
+    #  "  </layout>" +"\n" \
+    #  " </item>" +"\n" \
+    " <item>" +"\n" \
+    "  <layout type=\"vertical\">"
+    
+    k=1
+    for i in range(1,rows+1):
+      compareViewGrid += "\n" \
+      "   <item>" +"\n" \
+      "    <layout type=\"horizontal\">"
+      for j in range(1,cols+1):
+        compareViewGrid += "\n" \
+        "     <item>" +"\n" \
+        "      <view class=\"vtkMRMLSliceNode\" singletontag=\"Compare" + str(k) + "\">" +"\n" \
+        "       <property name=\"orientation\" action=\"default\">Axial</property>" +"\n" \
+        "       <property name=\"viewlabel\" action=\"default\">" + str(k) +"</property>" +"\n" \
+        "       <property name=\"viewcolor\" action=\"default\">#E17012</property>" +"\n" \
+        "       <property name=\"lightboxrows\" action=\"default\">1</property>" +"\n" \
+        "       <property name=\"lightboxcolumns\" action=\"default\">1</property>" +"\n" \
+        "       <property name=\"lightboxrows\" action=\"relayout\">1</property>" +"\n" \
+        "       <property name=\"lightboxcolumns\" action=\"relayout\">1</property>" +"\n" \
+        "      </view>" +"\n" \
+        "     </item>"
+        k+=1
+      compareViewGrid += "\n" \
+      "     </layout>" +"\n" \
+      "    </item>"
+    
+    compareViewGrid += "\n" \
+    "  </layout>" +"\n" \
+    " </item>" +"\n" \
+    "</layout>"
+    
+    print compareViewGrid
+    #Add to the layout node
+    layoutNode=self.getLayoutNode() #self.getLayoutManager().layoutLogic().GetLayoutNode()   #slicer.util.getNode("Layout")
+    if layoutNode.IsLayoutDescription(customLayoutNumber):
+      layoutNode.SetLayoutDescription(customLayoutNumber, compareViewGrid)
+    else:
+      layoutNode.AddLayoutDescription(customLayoutNumber, compareViewGrid)

@@ -88,6 +88,10 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.setup_Step1_LoadStudies() 
     self.setup_Step2_Registration()
     self.setup_Step3_FociDetection()
+    
+    #creates a new layout
+    self.customLayoutGridView3x3 = 1033
+    self.logic.customCompareLayout(3,3,self.customLayoutGridView3x3)
 
     if widgetClass:
       self.widget = widgetClass(self.parent)
@@ -118,6 +122,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.step0_viewSelectorComboBox.addItem("3D-only view")
     self.step0_viewSelectorComboBox.addItem("Axial slice only view")
     self.step0_viewSelectorComboBox.addItem("Double 3D view")
+    self.step0_viewSelectorComboBox.addItem("3x3 compare view")
     self.step0_layoutSelectionCollapsibleButtonLayout.addRow("Layout: ", self.step0_viewSelectorComboBox)
     self.step0_viewSelectorComboBox.connect('activated(int)', self.onViewSelect)
 
@@ -391,6 +396,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
     
   ### STEP 2 #######
   def onCompareBasalIctalMRIButtonClicked(self):
+    self.layoutWidget.setLayout(self.customLayoutGridView3x3)  
     self.logic.compareBasalIctalMRI()  
     
       
@@ -425,6 +431,8 @@ class EpileptogenicFocusDetectionSlicelet(object):
        self.layoutWidget.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutTabbedSliceView)
     elif layoutIndex == 4:
        self.layoutWidget.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutDual3DView)
+    elif layoutIndex == 5:
+       self.layoutWidget.setLayout(self.customLayoutGridView3x3)   
 
   #
   # Testing related functions
