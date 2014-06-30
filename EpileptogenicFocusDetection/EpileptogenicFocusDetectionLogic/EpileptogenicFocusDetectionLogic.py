@@ -598,7 +598,7 @@ class EpileptogenicFocusDetectionLogic:
     " </item>" +"\n" \
     "</layout>"
     
-    print compareViewGrid
+    #print compareViewGrid
     #Add to the layout node
     layoutNode=self.getLayoutNode() #self.getLayoutManager().layoutLogic().GetLayoutNode()   #slicer.util.getNode("Layout")
     if layoutNode.IsLayoutDescription(customLayoutNumber):

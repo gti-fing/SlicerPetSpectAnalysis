@@ -34,7 +34,6 @@ class SliceletMainFrame(qt.QFrame):
     if len(refs) > 1:
       print('Stuck slicelet references (' + repr(len(refs)) + '):\n' + repr(refs))
 
-    slicer.gelDosimetrySliceletInstance = None
     self.slicelet.parent = None
     self.slicelet = None
     self.deleteLater()
@@ -105,7 +104,34 @@ class EpileptogenicFocusDetectionSlicelet(object):
     
   # Disconnect all connections made to the slicelet to enable the garbage collector to destruct the slicelet object on quit
   def disconnect(self):  
-    print('Disconnect')   
+    print('Disconnect') 
+    self.selfTestButton.disconnect('clicked()', self.onSelfTestButtonClicked)
+    # Step 0
+    self.step0_viewSelectorComboBox.disconnect('activated(int)', self.onViewSelect)  
+    # Step 1
+    self.loadBasalVolumeButton.disconnect("clicked()",self.onLoadBasalVolumeButtonClicked)
+    self.rotateBasalISButton.disconnect("clicked()",self.onRotateBasalISButtonClicked)
+    self.rotateBasalAPButton.disconnect("clicked()",self.onRotateBasalAPButtonClicked)
+    self.rotateBasalLRButton.disconnect("clicked()",self.onRotateBasalLRButtonClicked)
+    self.loadIctalVolumeButton.disconnect("clicked()",self.onLoadIctalVolumeButtonClicked)
+    self.rotateIctalISButton.disconnect("clicked()",self.onRotateIctalISButtonClicked)
+    self.rotateIctalAPButton.disconnect("clicked()",self.onRotateIctalAPButtonClicked)
+    self.rotateIctalLRButton.disconnect("clicked()",self.onRotateIctalLRButtonClicked)
+    self.loadMRIVolumeButton.disconnect("clicked()",self.onLoadMRIVolumeButtonClicked)
+    self.rotateMRIISButton.disconnect("clicked()",self.onRotateMRIISButtonClicked)
+    self.rotateMRIAPButton.disconnect("clicked()",self.onRotateMRIAPButtonClicked)
+    self.rotateMRILRButton.disconnect("clicked()",self.onRotateMRILRButtonClicked)
+    # Step 2
+    self.compareBasalIctalMRIButton.disconnect('clicked()', self.onCompareBasalIctalMRIButtonClicked)
+    self.registerIctalToBasalButton.disconnect('clicked()', self.onRegisterIctalToBasalButtonClicked)
+    self.computeBasalAndIctalMaskButton.disconnect("clicked()",self.onComputeBasalAndIctalMaskButtonClicked)
+    self.checkBasalAndIctalMaskButton.disconnect("clicked()",self.onCheckBasalAndIctalMaskButtonClicked)
+    self.registerBasalToMRIButton.disconnect('clicked()', self.onRegisterBasalToMRIButtonClicked)
+    # Step 3
+    self.aContrarioDetectionButton.disconnect('clicked()', self.onAContrarioDetectionButtonClicked)
+    self.SISCOMDetectionButton.disconnect('clicked()', self.onSubtractionDetectionButtonClicked)
+    self.thresholdSISCOMSlider.disconnect('positionsChanged(double,double)', self.onThresholdSISCOMSliderClicked)
+
 
   def setup_Step0_LayoutSelection(self):
     # Layout selection step
@@ -504,6 +530,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
 
 #------------------------------------------------------------------------------------------------    
   def onCheckBasalAndIctalMaskButtonClicked(self):
+    self.layoutWidget.setLayout(self.customLayoutGridView3x3)  
     self.logic.compareBasalIctalMask()    
    
  #--------------------------------------------------------------------------------------------- 
