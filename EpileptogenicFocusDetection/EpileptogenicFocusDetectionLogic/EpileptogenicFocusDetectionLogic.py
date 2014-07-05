@@ -34,6 +34,8 @@ class EpileptogenicFocusDetectionLogic:
     
     self.obiToPlanTransformName = 'obiToPlanTransform'
     self.obiToMeasuredTransformName = "obiToMeasuredTransform"
+    
+    self.FOCI_DETECTION_COLORMAP_NAME = "FociDetectionColorMap"
 
     # Declare member variables (mainly for documentation)
     self.pddDataArray = None
@@ -514,6 +516,23 @@ class EpileptogenicFocusDetectionLogic:
     #TODO
     pass
   
+  # --------------------------------------------------------------------------
+  def applyMaskToVolume(self,inputVolumeNode,labelMaskNode,outputVolumeNode):
+    "Trying to apply mask to volume..."  
+    parameters = {} 
+    parameters['InputVolume'] = inputVolumeNode.GetID() 
+    parameters['MaskVolume'] = labelMaskNode.GetID() 
+    parameters['Label'] = 1 
+    parameters['Replace'] = 0 
+    parameters['OutputVolume'] = outputVolumeNode.GetID() 
+    clinode = slicer.cli.run( slicer.modules.maskscalarvolume, None, parameters, wait_for_completion=True )
+    if not clinode:
+      print('Mask scalar volume failed')
+      return False
+    else:
+      print "Mask succesfully applied"  
+      return True      
+  
   # ---------------------------------------------------------------------------
   def subtractImages(self,ictalVolumeNode,basalVolumeNode, outputVolumeNode):
     parameters = {} 
@@ -626,3 +645,91 @@ class EpileptogenicFocusDetectionLogic:
     self.infoLayout.addWidget(self.label)
     qt.QTimer.singleShot(msec, self.info.close)
     self.info.exec_()
+    
+
+  def createFociVisualizationColorMap(self,minimumValue,maximumValue):
+    if (minimumValue<0):  
+      numberOfCoolColors = -(minimumValue)
+    else:
+      numberOfCoolColors = 0
+    if (maximumValue>0):  
+      numberOfHotColors =  maximumValue+1 # includes zero
+    else:
+      numberOfHotColors = 0  
+      
+    print "number of cool colors = " + str(numberOfCoolColors)  
+    print "number of hot colors (including zero) = " + str(numberOfHotColors)
+    
+    colorNode = slicer.util.getNode(self.FOCI_DETECTION_COLORMAP_NAME)
+    if colorNode is None:
+      colorNode = slicer.vtkMRMLColorTableNode() 
+      slicer.mrmlScene.AddNode(colorNode)
+      colorNode.SetName(self.FOCI_DETECTION_COLORMAP_NAME)
+      
+    colorNode.SetTypeToUser()   
+    colorNode.SetNumberOfColors(numberOfCoolColors + numberOfHotColors);
+    #colorNode.SetColor(0, "zero", 0.0, 0.0, 0.0, 1.0);
+    #colorNode.SetColor(1, "one", 1.0, 0.0, 0.0, 1.0);
+    #colorNode.SetColor(2, "two", 0.0, 1.0, 0.0, 1.0);
+    colorNode.SetNamesFromColors()
+    
+    
+    ''' cool color map in Matlab     
+    r = (0:m-1)'/max(m-1,1);
+    c = [r 1-r ones(m,1)]; 
+    '''
+    for colorIndex in xrange(0,numberOfCoolColors):
+      r = numpy.double(numberOfCoolColors -1 - colorIndex) / (numberOfCoolColors)  
+      colorNode.SetColor(colorIndex, r, 1-r, 1, 1.0);  
+      print "cool color index = " + str(colorIndex)
+    '''   hot color table in Matlab
+     r = [(1:n)'/n; ones(m-n,1)];
+     g = [zeros(n,1); (1:n)'/n; ones(m-2*n,1)];
+     b = [zeros(2*n,1); (1:m-2*n)'/(m-2*n)]; 
+    '''  
+    n=3*numberOfHotColors/8  # fix
+    for colorIndex in xrange(0,numberOfHotColors+1):
+      if colorIndex < n:
+        r=numpy.double(colorIndex)/n    
+        g=0.0   
+        b=0.0
+      elif colorIndex < 2*n :
+        r=1.0  
+        g=numpy.double((colorIndex-n+1))/n 
+        b=0.0
+      else: 
+        r=1.0    
+        g=1.0
+        b=numpy.double((colorIndex-2*n+1))/(numberOfHotColors-2*n)
+      colorNode.SetColor(numberOfCoolColors + colorIndex, r, g, b, 1.0); 
+      print "hot color index = " + str(numberOfCoolColors + colorIndex)
+
+     
+             
+  def showDifferencesBiggerThanStdThreshold(self, minimumValue, maximumValue, negativeValuesToHide, positiveValuesToHide):
+    if (minimumValue<0):  
+      numberOfCoolColors = -(minimumValue)
+    else:
+      numberOfCoolColors = 0
+    if (maximumValue>0):  
+      numberOfHotColors =  maximumValue+1 # includes zero
+    else:
+      numberOfHotColors = 0  
+      
+    colorNode = slicer.util.getNode(self.FOCI_DETECTION_COLORMAP_NAME)
+    
+    
+    ''' cool color map in Matlab     
+    r = (0:m-1)'/max(m-1,1);
+    c = [r 1-r ones(m,1)]; 
+    '''
+    for colorIndex in xrange(0,numberOfCoolColors - negativeValuesToHide):
+      colorNode.SetOpacity(colorIndex,1);  
+    for colorIndex in xrange(numberOfCoolColors - negativeValuesToHide,numberOfCoolColors):
+      colorNode.SetOpacity(colorIndex,0);    
+ 
+    for colorIndex in xrange(0,positiveValuesToHide+1):
+      colorNode.SetOpacity(numberOfCoolColors + colorIndex,0);  
+    for colorIndex in xrange(positiveValuesToHide+1,numberOfHotColors+1 ):  
+      colorNode.SetOpacity(numberOfCoolColors + colorIndex,1);  
+    

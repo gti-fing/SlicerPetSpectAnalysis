@@ -404,8 +404,11 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.thresholdSISCOMLayout.addWidget(self.thresholdSISCOMSlider)
     self.thresholdSISCOMLayout.addWidget(self.thresholdSISCOM_maximum)
     
-    self.step3A_SISCOMDetectionCollapsibleButtonLayout.addRow('Visualization threshold: ', self.thresholdSISCOMFrame)
+    self.stdDevSISCOMSlider=ctk.ctkSliderWidget()
+    self.stdDevSISCOMSlider.setEnabled('False')
     
+    self.step3A_SISCOMDetectionCollapsibleButtonLayout.addRow('Visualization threshold: ', self.thresholdSISCOMFrame)
+    self.step3A_SISCOMDetectionCollapsibleButtonLayout.addRow('Standard deviations threshold: ', self.stdDevSISCOMSlider)
 
 
    
@@ -466,6 +469,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.aContrarioDetectionButton.connect('clicked()', self.onAContrarioDetectionButtonClicked)
     self.SISCOMDetectionButton.connect('clicked()', self.onSubtractionDetectionButtonClicked)
     self.thresholdSISCOMSlider.connect('positionsChanged(double,double)', self.onThresholdSISCOMSliderClicked)
+    self.stdDevSISCOMSlider.connect('valueChanged(double)', self.onStdDevSISCOMSliderClicked)
 
     # Open OBI fiducial selection panel when step is first opened
     self.step3A_SISCOMDetectionCollapsibleButton.setProperty('collapsed', False)
@@ -546,16 +550,27 @@ class EpileptogenicFocusDetectionSlicelet(object):
     subtractionOutputVolumeNode.SetName("Ictal-Basal Subtraction") 
     result= self.logic.subtractImages(ictalVolumeNode,basalVolumeNode, subtractionOutputVolumeNode) 
     if result==True:
+      maskVolumeNode=slicer.util.getNode("basalIctalMaskVolume")
+      if maskVolumeNode is not None:
+        maskVolumeNode.SetLabelMap(True)  
+        self.logic.applyMaskToVolume(subtractionOutputVolumeNode,maskVolumeNode,subtractionOutputVolumeNode)  
       data=slicer.util.array(subtractionOutputVolumeNode.GetName())
-      minimumValue = data.min()
-      maximumValue = data.max()
+      minimumValue = numpy.int(data.min())
+      maximumValue = numpy.int(data.max())
       self.thresholdSISCOMSlider.minimum = minimumValue
       self.thresholdSISCOMSlider.maximum = maximumValue
       self.thresholdSISCOMSlider.setEnabled('True')
       self.thresholdSISCOM_minimum.setText(str(minimumValue))
       self.thresholdSISCOM_maximum.setText(str(maximumValue))
+      
+      stddev=data.std()
+      # creates a new colormap
+      self.logic.createFociVisualizationColorMap(minimumValue,maximumValue)
+      colorMapNode=slicer.util.getNode("FociDetectionColorMap")
       dnode=subtractionOutputVolumeNode.GetDisplayNode()
-      dnode.SetAndObserveColorNodeID('vtkMRMLColorTableNodeWarm1')
+      dnode.SetAutoWindowLevel(0)
+      dnode.SetWindowLevelMinMax(minimumValue,maximumValue)
+      dnode.SetAndObserveColorNodeID(colorMapNode.GetID())
       backgroundVolumeNode = ictalVolumeNode
       foregroundVolumeNode = subtractionOutputVolumeNode
       self.showActivations(backgroundVolumeNode, foregroundVolumeNode)
@@ -573,7 +588,15 @@ class EpileptogenicFocusDetectionSlicelet(object):
     dnode.ApplyThresholdOn()
     self.thresholdSISCOM_minimum.setText(str(minValue))
     self.thresholdSISCOM_maximum.setText(str(maxValue))
-      
+    
+  def onStdDevSISCOMSliderClicked(self, value): 
+    subtractionOutputVolumeNode = slicer.util.getNode("Ictal-Basal Subtraction")    
+    data=slicer.util.array(subtractionOutputVolumeNode.GetName())
+    minimumValue = numpy.int(data.min())
+    maximumValue = numpy.int(data.max())  
+    negativeValuesToHide = numpy.int(value)
+    positiveValuesToHide = numpy.int(value)
+    self.logic.showDifferencesBiggerThanStdThreshold(minimumValue, maximumValue, negativeValuesToHide, positiveValuesToHide)   
  #---------------------------------------------------------------------------------------------------------------     
   def onAContrarioDetectionButtonClicked(self):   
     basalVolumeNode = self.basalVolumeAContrarioNodeSelector.currentNode()
