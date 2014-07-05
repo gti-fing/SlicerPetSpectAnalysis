@@ -463,6 +463,45 @@ class EpileptogenicFocusDetectionLogic:
   def computeBasalIctalMask(self):
     self.computeBasalIctalMaskImplementation(self.BASAL_VOLUME_NAME, self.ICTAL_VOLUME_NAME, self.BASAL_ICTAL_MASK_NAME,3,2,1)
   
+  # ---------------------------------------------------------------------------
+  def getNormalizedImages(self,basalVolumeNode, ictalVolumeNode, threshold, zmax, normalizedBasalVolumeNode, normalizedIctalVolumeNode ):
+    basalArray = slicer.util.array(basalVolumeNode.GetName())
+    ictalArray = slicer.util.array(ictalVolumeNode.GetName())
+    normalizedBasalArray = slicer.util.array(normalizedBasalVolumeNode.GetName())
+    normalizedIctalArray = slicer.util.array(normalizedIctalVolumeNode.GetName())
+    # Create an auxiliar mask using the threshold value
+    maxBasal = basalArray.max() 
+    maxIctal = ictalArray.max()     
+    basal_mask=basalArray>threshold*maxBasal
+    ictal_mask=ictalArray>threshold*maxIctal   
+    # Compute mean and std in pixels inside the mask
+    basal_mask_GreaterThanZeroIndices = (basal_mask > 0).nonzero();
+    mean_basal_inside_mask = basalArray[basal_mask_GreaterThanZeroIndices].mean()
+    std_basal_inside_mask = basalArray[basal_mask_GreaterThanZeroIndices].std()
+    ictal_mask_GreaterThanZeroIndices = (ictal_mask > 0).nonzero();
+    mean_ictal_inside_mask = ictalArray[ictal_mask_GreaterThanZeroIndices].mean()
+    std_ictal_inside_mask = ictalArray[ictal_mask_GreaterThanZeroIndices].std()
+    # Compute the z scores maps
+    basal_map = numpy.zeros(basalArray.shape,numpy.bool) # maps initialized to zero
+    ictal_map = numpy.zeros(basalArray.shape,numpy.bool)
+    z_basal = (basalArray - mean_basal_inside_mask)/std_basal_inside_mask  # 
+    z_ictal = (ictalArray - mean_ictal_inside_mask)/std_ictal_inside_mask
+    z_basal_below_zmax = z_basal < zmax
+    z_ictal_below_zmax = z_ictal < zmax
+    basal_map[z_basal_below_zmax]=1
+    basal_map = basal_map * basal_mask  # Remove the z<z_max outside the mask
+    ictal_map[z_ictal_below_zmax]=1
+    ictal_map = ictal_map * ictal_mask  # Remove the z<z_max outside the mask
+    # Compute the intersection of the maps
+    intersection_map = basal_map * ictal_map
+    intersection_region = intersection_map>0 
+    basal_normalization_factor = basalArray[intersection_region].mean()
+    ictal_normalization_factor = ictalArray[intersection_region].mean()
+    normalizedBasalArray[:] = basalArray/basal_normalization_factor
+    normalizedIctalArray[:] = ictalArray/ictal_normalization_factor
+    normalizedBasalVolumeNode.GetImageData().Modified()
+    normalizedBasalVolumeNode.GetImageData().Modified()
+    
   # ---------------------------------------------------------------------------  
   def computeBasalIctalMaskImplementation(self,basalVolumeName, ictalVolumeName, basalIctalMaskVolumeName,ra,rb,rc):
       
