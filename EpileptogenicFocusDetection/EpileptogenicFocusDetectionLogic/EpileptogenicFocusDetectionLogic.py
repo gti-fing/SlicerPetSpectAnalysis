@@ -484,8 +484,8 @@ class EpileptogenicFocusDetectionLogic:
     # Compute the z scores maps
     basal_map = numpy.zeros(basalArray.shape,numpy.bool) # maps initialized to zero
     ictal_map = numpy.zeros(basalArray.shape,numpy.bool)
-    z_basal = (basalArray - mean_basal_inside_mask)/std_basal_inside_mask  # 
-    z_ictal = (ictalArray - mean_ictal_inside_mask)/std_ictal_inside_mask
+    z_basal = abs(basalArray - mean_basal_inside_mask)/std_basal_inside_mask  # 
+    z_ictal = abs(ictalArray - mean_ictal_inside_mask)/std_ictal_inside_mask
     z_basal_below_zmax = z_basal < zmax
     z_ictal_below_zmax = z_ictal < zmax
     basal_map[z_basal_below_zmax]=1
@@ -501,6 +501,25 @@ class EpileptogenicFocusDetectionLogic:
     normalizedIctalArray[:] = ictalArray/ictal_normalization_factor
     normalizedBasalVolumeNode.GetImageData().Modified()
     normalizedBasalVolumeNode.GetImageData().Modified()
+    
+    
+  # ---------------------------------------------------------------------------  
+  def generateMask(self, normalizedBasalVolumeNode, normalizedIctalVolumeNode):  
+    normalizedBasalArray = slicer.util.array(normalizedBasalVolumeNode.GetName())
+    normalizedIctalArray = slicer.util.array(normalizedIctalVolumeNode.GetName())   
+    max_norm_basal =  normalizedBasalArray.max()    
+    max_norm_ictal =  normalizedIctalArray.max()  
+    basalMask = normalizedBasalArray>0.4* max_norm_basal
+    ictalMask = normalizedIctalArray>0.4* max_norm_ictal
+    # Create the masks
+    mask = basalMask * ictalMask
+    volLogic=slicer.modules.volumes.logic()
+    maskVolumeNode = volLogic.CloneVolume(normalizedBasalVolumeNode,'intersection_mask')
+    maskArray = slicer.util.array(maskVolumeNode.GetName())
+    maskArray[:]=mask
+    maskVolumeNode.GetImageData().Modified()
+    maskVolumeNode.SetLabelMap(True)  
+    
     
   # ---------------------------------------------------------------------------  
   def computeBasalIctalMaskImplementation(self,basalVolumeName, ictalVolumeName, basalIctalMaskVolumeName,ra,rb,rc):

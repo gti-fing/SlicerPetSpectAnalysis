@@ -129,6 +129,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.registerBasalToMRIButton.disconnect('clicked()', self.onRegisterBasalToMRIButtonClicked)
     # Step 3
     self.aContrarioDetectionButton.disconnect('clicked()', self.onAContrarioDetectionButtonClicked)
+    self.normalizeRegisteredImagesButton.disconnect('clicked()', self.onNormalizeImagesButtonClicked)
     self.SISCOMDetectionButton.disconnect('clicked()', self.onSubtractionDetectionButtonClicked)
     self.thresholdSISCOMSlider.disconnect('positionsChanged(double,double)', self.onThresholdSISCOMSliderClicked)
 
@@ -384,10 +385,15 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.MRISISCOMSelector.setToolTip( "Pick the MRI volume for a-contrario detection." )
     self.step3A_SISCOMDetectionCollapsibleButtonLayout.addRow('MRI volume: ', self.MRISISCOMSelector)
     
-    #A-contrario detection button
+    # Normalization of images
+    self.normalizeRegisteredImagesButton = qt.QPushButton("Perform normalization of images")
+    self.normalizeRegisteredImagesButton.toolTip = "Perform the normalization of the images: ictal - basal"
+    self.normalizeRegisteredImagesButton.name = "normalizeRegisteredImagesButton"
+    self.step3A_SISCOMDetectionCollapsibleButtonLayout.addRow('Normalize registered images: ', self.normalizeRegisteredImagesButton)
+    #SISCOM detection button
     self.SISCOMDetectionButton = qt.QPushButton("Perform subtraction of images")
     self.SISCOMDetectionButton.toolTip = "Perform the subtraction of the images: ictal - basal"
-    self.SISCOMDetectionButton.name = "aContrarioDetectionButton"
+    self.SISCOMDetectionButton.name = "SISCOMDetectionButton"
     self.step3A_SISCOMDetectionCollapsibleButtonLayout.addRow('Foci detection: ', self.SISCOMDetectionButton)
     
     # SISCOM Threshold frame
@@ -467,6 +473,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
     
     # Connections
     self.aContrarioDetectionButton.connect('clicked()', self.onAContrarioDetectionButtonClicked)
+    self.normalizeRegisteredImagesButton.connect('clicked()', self.onNormalizeImagesButtonClicked)
     self.SISCOMDetectionButton.connect('clicked()', self.onSubtractionDetectionButtonClicked)
     self.thresholdSISCOMSlider.connect('positionsChanged(double,double)', self.onThresholdSISCOMSliderClicked)
     self.stdDevSISCOMSlider.connect('valueChanged(double)', self.onStdDevSISCOMSliderClicked)
@@ -541,6 +548,17 @@ class EpileptogenicFocusDetectionSlicelet(object):
   def onRegisterBasalToMRIButtonClicked(self):    
     if self.logic.registerBasalToMRI():
       print('Registrooooooo!')   
+ #---------------------------------------------------------------------------------------------     
+  def onNormalizeImagesButtonClicked(self):
+    basalVolumeNode = self.basalVolumeSISCOMNodeSelector.currentNode() 
+    ictalVolumeNode = self.ictalVolumeSISCOMNodeSelector.currentNode()  
+    volLogic=slicer.modules.volumes.logic()
+    normalizedBasalVolumeNode = volLogic.CloneVolume(basalVolumeNode,basalVolumeNode.GetName() + '_normalized')
+    normalizedIctalVolumeNode = volLogic.CloneVolume(ictalVolumeNode,ictalVolumeNode.GetName() + '_normalized')
+    self.logic.getNormalizedImages(basalVolumeNode,ictalVolumeNode,0.4,1,normalizedBasalVolumeNode,normalizedIctalVolumeNode)  
+    self.logic.generateMask(normalizedBasalVolumeNode,normalizedIctalVolumeNode)
+    pass
+  
 #------------------------------------------------------------------------------------------------------------------      
   def onSubtractionDetectionButtonClicked(self): 
     basalVolumeNode = self.basalVolumeSISCOMNodeSelector.currentNode() 
