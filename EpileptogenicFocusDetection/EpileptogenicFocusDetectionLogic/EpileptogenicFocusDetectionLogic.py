@@ -229,6 +229,7 @@ class EpileptogenicFocusDetectionLogic:
     self.obiToMeasuredTransformName = "obiToMeasuredTransform"
     
     self.FOCI_DETECTION_COLORMAP_NAME = "FociDetectionColorMap"
+    self.FOCI_ACONTRARIO_DETECTION_COLORMAP_NAME = "AContrarioFociDetectionColorMap"
 
     # Declare member variables (mainly for documentation)
     self.pddDataArray = None
@@ -824,6 +825,9 @@ class EpileptogenicFocusDetectionLogic:
       print('A contrario detection failed')
       return False
     else:
+      nfaOutputVolumeNodeArray = slicer.util.array(nfaOutputVolumeNode.GetName())
+      nfaOutputVolumeNodeArray[:] = 1 - nfaOutputVolumeNodeArray
+      nfaOutputVolumeNode.GetImageData().Modified()  
       return True
     pass
 
@@ -905,6 +909,46 @@ class EpileptogenicFocusDetectionLogic:
     qt.QTimer.singleShot(msec, self.info.close)
     self.info.exec_()
     
+    
+  def createAContrarioFociVisualizationColorMap(self, maximumValue): 
+    numberOfHotColors =  maximumValue+1 # includes zero
+    print "number of hot colors (including zero) = " + str(numberOfHotColors)
+    
+    colorNode = slicer.util.getNode(self.FOCI_ACONTRARIO_DETECTION_COLORMAP_NAME)
+    if colorNode is None:
+      colorNode = slicer.vtkMRMLColorTableNode() 
+      slicer.mrmlScene.AddNode(colorNode)
+      colorNode.SetName(self.FOCI_ACONTRARIO_DETECTION_COLORMAP_NAME)
+      
+    colorNode.SetTypeToUser()   
+    colorNode.SetNumberOfColors(numberOfHotColors);
+    #colorNode.SetColor(0, "zero", 0.0, 0.0, 0.0, 1.0);
+    #colorNode.SetColor(1, "one", 1.0, 0.0, 0.0, 1.0);
+    #colorNode.SetColor(2, "two", 0.0, 1.0, 0.0, 1.0);
+    colorNode.SetNamesFromColors()
+    '''   hot color table in Matlab
+     r = [(1:n)'/n; ones(m-n,1)];
+     g = [zeros(n,1); (1:n)'/n; ones(m-2*n,1)];
+     b = [zeros(2*n,1); (1:m-2*n)'/(m-2*n)]; 
+    '''  
+    n=3*numberOfHotColors/8  # fix
+    for colorIndex in xrange(0,numberOfHotColors+1):
+      if colorIndex < n:
+        r=np.double(colorIndex)/n    
+        g=0.0   
+        b=0.0
+      elif colorIndex < 2*n :
+        r=1.0  
+        g=np.double((colorIndex-n+1))/n 
+        b=0.0
+      else: 
+        r=1.0    
+        g=1.0
+        b=np.double((colorIndex-2*n+1))/(numberOfHotColors-2*n)
+      colorNode.SetColor(colorIndex, r, g, b, 1.0); 
+      print "hot color index = " + str(colorIndex)
+    # opacity in zero is zero
+    colorNode.SetOpacity(0,0);  
 
   def createFociVisualizationColorMap(self,minimumValue,maximumValue):
     if (minimumValue<0):  

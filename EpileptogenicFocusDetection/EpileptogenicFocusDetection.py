@@ -640,8 +640,8 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.logic.showDifferencesBiggerThanStdThreshold(minimumValue, maximumValue, negativeValuesToHide, positiveValuesToHide)   
  #---------------------------------------------------------------------------------------------------------------     
   def onAContrarioDetectionButtonClicked(self):   
-    basalVolumeNode = self.basalVolumeAContrarioNodeSelector.currentNode()
-    ictalVolumeNode = self.ictalVolumeAContrarioNodeSelector.currentNode()
+    basalVolumeNode = slicer.util.getNode(self.logic.BASAL_VOLUME_NAME)
+    ictalVolumeNode = slicer.util.getNode(self.logic.REGISTERED_ICTAL_VOLUME_NAME)
     diffOutputVolumeNode=slicer.vtkMRMLScalarVolumeNode()
     slicer.mrmlScene.AddNode(diffOutputVolumeNode)
     diffOutputVolumeNode.SetName("Diff Output Volume Node")
@@ -649,11 +649,21 @@ class EpileptogenicFocusDetectionSlicelet(object):
     slicer.mrmlScene.AddNode(nfaOutputVolumeNode)
     nfaOutputVolumeNode.SetName("NFA Output Volume Node")
     result = self.logic.detectFociAContrario(basalVolumeNode,ictalVolumeNode, diffOutputVolumeNode, nfaOutputVolumeNode)
+    nfaOutputVolumeNodeArray = slicer.util.array("NFA Output Volume Node")
+    #nfaOutputVolumeNodeArray[:] = 1 - nfaOutputVolumeNodeArray
+    #nfaOutputVolumeNode.GetImageData().Modified()
+    maximumValue = numpy.int(nfaOutputVolumeNodeArray.max())
+    self.logic.createAContrarioFociVisualizationColorMap(maximumValue)
+    colorMapNode=slicer.util.getNode(self.logic.FOCI_ACONTRARIO_DETECTION_COLORMAP_NAME)
+    dnode=nfaOutputVolumeNode.GetDisplayNode()
+    dnode.SetAutoWindowLevel(0)
+    dnode.SetWindowLevelMinMax(0,maximumValue)
+    dnode.SetAndObserveColorNodeID(colorMapNode.GetID())
    
-    dnode=diffOutputVolumeNode.GetDisplayNode()
-    dnode.SetAndObserveColorNodeID('vtkMRMLColorTableNodeWarm1')
-    dnode.SetLowerThreshold(1.01)
-    dnode.ApplyThresholdOn()
+    #dnode=diffOutputVolumeNode.GetDisplayNode()
+    #dnode.SetAndObserveColorNodeID('vtkMRMLColorTableNodeWarm1')
+    #dnode.SetLowerThreshold(1.01)
+    #dnode.ApplyThresholdOn()
     
     #mriVolumeNode = self.MRIAContrarioSelector.currentNode()
     #if mriVolumeNode is not None:
@@ -662,7 +672,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
     #  backgroundVolumeNode = mriVolumeNode
     
     backgroundVolumeNode = ictalVolumeNode
-    foregroundVolumeNode = diffOutputVolumeNode
+    foregroundVolumeNode = nfaOutputVolumeNode
     self.showActivations(backgroundVolumeNode, foregroundVolumeNode)
       
 #----------------------------------------------------------------------------------------------
@@ -672,16 +682,24 @@ class EpileptogenicFocusDetectionSlicelet(object):
     redWidgetCompNode.SetBackgroundVolumeID(backgroundVolumeNode.GetID())
     redWidgetCompNode.SetForegroundVolumeID(foregroundVolumeNode.GetID())
     redWidgetCompNode.SetForegroundOpacity(1)
+    redNode=slicer.util.getNode("vtkMRMLSliceNodeRed")
+    redNode.SetSliceVisible(True)
     
     greenWidgetCompNode = slicer.mrmlScene.GetNodeByID("vtkMRMLSliceCompositeNodeGreen")
     greenWidgetCompNode.SetBackgroundVolumeID(backgroundVolumeNode.GetID())
     greenWidgetCompNode.SetForegroundVolumeID(foregroundVolumeNode.GetID())
     greenWidgetCompNode.SetForegroundOpacity(1)
+    greenNode=slicer.util.getNode("vtkMRMLSliceNodeGreen")
+    greenNode.SetSliceVisible(True)
     
     yellowWidgetCompNode = slicer.mrmlScene.GetNodeByID("vtkMRMLSliceCompositeNodeYellow")
     yellowWidgetCompNode.SetBackgroundVolumeID(backgroundVolumeNode.GetID())
     yellowWidgetCompNode.SetForegroundVolumeID(foregroundVolumeNode.GetID())
     yellowWidgetCompNode.SetForegroundOpacity(1)  
+    yellowNode=slicer.util.getNode("vtkMRMLSliceNodeGreen")
+    yellowNode.SetSliceVisible(True)
+    
+    self.layoutWidget.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutConventionalView)  
     
 #-----------------------------------------------------------------------------------------------    
   #
