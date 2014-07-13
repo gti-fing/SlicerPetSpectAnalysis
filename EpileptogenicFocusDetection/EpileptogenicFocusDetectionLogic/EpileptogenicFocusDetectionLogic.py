@@ -2,8 +2,199 @@ import os
 import time
 from __main__ import vtk, qt, ctk, slicer
 from math import *
-import numpy
+import AContrarioLogic as acl
 from vtk.util import numpy_support
+import numpy as np
+import SimpleITK as sitk
+import sitkUtils
+
+
+class hdfe:
+    def __init__(self):
+        self.BASAL_VOLUME_NAME = 'P1_B'
+        self.ICTAL_VOLUME_NAME = 'P1_Ic'
+        self.MRI_VOLUME_NAME = 'P1_MRI_T2'
+        self.MASK_VOLUME_NAME = 'Mask'
+        
+        # Get the numpy arrays
+        self.inter = slicer.util.array(self.BASAL_VOLUME_NAME)
+        self.ic = slicer.util.array(self.ICTAL_VOLUME_NAME)
+        self.mask = slicer.util.array(self.BASAL_VOLUME_NAME)
+        
+        
+    
+    def binaryClosingWithBall (self, array, radius):
+        sitkArray = sitk.GetImageFromArray(array)
+        sitkClosed = sitk.BinaryMorphologicalClosing(sitkArray, radius)
+        resultArray = sitk.GetArrayFromImage(sitkClosed)        
+        return resultArray
+      
+    def binaryOpeningWithBall (self, array, radius):
+        sitkArray = sitk.GetImageFromArray(array)
+        sitkClosed = sitk.BinaryMorphologicalOpening(sitkArray, radius)
+        resultArray = sitk.GetArrayFromImage(sitkClosed)        
+        return resultArray
+    
+    def binaryConnectedComponents (self, array):
+        sitkArray = sitk.GetImageFromArray(array)
+        sitkLabels = sitk.ConnectedComponent(sitkArray, fullyConnected = True )
+        resultArray = sitk.GetArrayFromImage(sitkLabels)        
+        return resultArray
+      
+    def pushArrayToSlicer(self, array, nodeName='ArrayPushedFromCode', compositeView=0, overWrite=False):
+        sitkImage = sitk.GetImageFromArray(array)
+        sitkUtils.PushToSlicer(sitkImage, nodeName, compositeView, overWrite)
+        
+    def getArrayFromSlicer(self,nodeName):
+        return (slicer.util.array(nodeName))
+      
+    
+    def runTestRellenarMascara(self):
+        matlabMask = self.getArrayFromSlicer('ictal_mask')
+        self.pushArrayToSlicer(matlabMask, 'rellenar_mascara____MascaraNuevaDeMatlab', overWrite=True)
+        
+        rawMask = self.getArrayFromSlicer('ictal_mask_sinRellenar')
+        mask = self.rellenar_mascara(rawMask, 4, 2)
+        self.pushArrayToSlicer(mask, 'rellenar_mascara____MascaraNueva', overWrite=True)
+        
+        self.pushArrayToSlicer(matlabMask-mask, 'rellenar_mascara____DiferenciaCon MascaraDeMatlab', overWrite=True)
+        
+        
+    
+    def rellenar_mascara(self, mascara, metodo, radio):
+        #function [mascara_nueva,vecindad]=rellenar_mascara(mascara,metodo,radio)
+        
+        #funcion que rellena los huecos que pueden quedar en las mascaras. 
+        
+        #mascara es mascara original
+        #metodo puede ser:
+            #1 para labeling
+            #2 para primero  clausura y despues apertura (#cambio el orden en v6.2
+            #3 para primero clausura-apertura y despues labeling #cambio el orden #en v6.2
+            #4 para metodo iterativo (clausura, apertura, labeling) aumentando el
+            #radio del elemento estructurante
+        #radio es el radio usado para apertura y clausura, como elemento
+        #estructurante se usa una esfera
+        
+        #si se elige metodo 1, la entrada radio puede ser cualquier cosa, no se tiene
+        #en cuentas
+        max_iter = 10;          # # de iteraciones maximas para el metodo 4
+        delta_minimo = 9e-4;  # Resuelve conflicto de edad de pacientes pequenos (ninos)-Huecos
+        
+        [alto,ancho,capas]=mascara.shape;
+#        [vecindad] = disco(radio);
+        if metodo==1:
+            pass
+#            auxiliar = mascara<1;
+#            [L,NUM] = bwlabeln(auxiliar,26);#se usa funcion labelling 3d de matlab
+#            M=L;
+#            ###cambio respecto a version anterior:
+#            #en alguinos pocos casos  el fondo no queda en el cluster 1, queda en otro cluster y eso hace
+#            ###que la mascara quede casi toda en 1. Lo que se hace es mirar las
+#            ###puntas, si pertenecen al mismo cluster (fondo ) entonces se usa ese
+#            ###valor. Si no pertenecen al mismo me la juego por el cluster 1
+#            a=M(1,1,1;
+#            b=M(1,1,end);
+#            c=M(1,end,1);
+#            d=M(end,1,1); #podria seguir, solo se usan las 4 esquinas
+#            
+#            
+#            if a==b & b==c & c==d #si las 4 esquinas pertenecen al mismo cluster
+#                M(find(L~=a))=0;
+#            else #si son distintos me la juego por 1
+#                M(find(L~=1))=0;
+#            end
+#            ###fin cambios  --> M(find(L~=1))=0;
+#            mascara_nueva=M<1;
+        elif metodo==2:
+            pass
+#                
+#                se = vecindad;
+#                #mascara_nueva = imopen (mascara,se);
+#                #mascara_nueva = imclose(mascara_nueva,se);
+#                mascara_nueva=imclose(mascara,se);#se aplica morfologia
+#                mascara_nueva = imopen (mascara_nueva,se);
+#                
+        elif metodo==3:
+            pass
+#                
+#                se = vecindad;
+#                #mascara_nueva = imopen (mascara,se);
+#                #mascara_nueva=imclose(mascara_nueva,se);
+#                mascara_nueva=imclose(mascara,se);#se aplica morfologia
+#                mascara_nueva = imopen (mascara_nueva,se);
+#                auxiliar=mascara_nueva<1;
+#                [L,NUM] = bwlabeln(auxiliar,26);#luego se aplica labeling
+#                M=L;
+#                ###cambio respecto a version anterior:
+#            #en alguinos pocos casos  el fondo no queda en el cluster 1, queda en otro cluster y eso hace
+#                ###que la mascara quede casi toda en 1. Lo que se hace es mirar las
+#                ###puntas, si pertenecen al mismo cluster (fondo ) entonces se usa ese
+#                ###valor. Si no pertenecen al mismo me la juego por el cluster 1
+#                a=M(1,1,1);
+#                b=M(1,1,capas);
+#                c=M(1,ancho,1);
+#                d=M(alto,1,1);#podria seguir, solo se usan las 4 esquinas
+#                
+#                if a==b & b==c & c==d
+#                    
+#                    M(find(L~=a))=0;
+#                else #si son distintos me la juego por 1
+#                    M(find(L~=1))=0;
+#                end
+#                ###fin cambios -->  M(find(L~=1))=0;
+#                mascara_nueva=M<1;
+        elif metodo==4: #metodo iterativo
+            indicador = 1;
+            [x,y,z] = mascara.shape;
+            ind_previo = np.inf;
+            delta = np.inf;
+            for it in range(0,max_iter):    #se repite este paso, se va agrandando el radio hasta que el metodo "converge"
+                
+                mascara_nueva = self.binaryClosingWithBall(mascara,radio) # imclose(mascara,se);
+                mascara_nueva = self.binaryOpeningWithBall(mascara_nueva,radio) #imopen(mascara_nueva,se);
+                
+                self.pushArrayToSlicer( mascara_nueva ,'rellenar_mascara_____LuegodeMorfologia' ,  overWrite=True)
+                
+                auxiliar=mascara_nueva.copy(); auxiliar[mascara_nueva<1]=1; auxiliar[mascara_nueva>0]=0; # invert the mask (now the brain is 0 and the background and holes is 1
+                L = self.binaryConnectedComponents(auxiliar)  #[L,NUM] = bwlabeln(auxiliar,26);
+                
+                self.pushArrayToSlicer( L ,'rellenar_mascara_____Labels' ,  overWrite=True)
+                
+                M=L.copy();
+                a=M[0,0,0];
+                b=M[0,0,capas-1];
+                c=M[0,ancho-1,0];
+                d=M[alto-1,1,1];
+                #podria seguir, me quedo con estos nomas
+                if a==b and  b==c and c==d :
+                    #'entro al if'
+                    M[L!=a]=0;
+                else :#si son distintos me la juego por 1
+                    M[L!=1]=0;
+                
+                #M(find(L~=1))=0;
+                mascara_nueva[M<1]=1; mascara_nueva[M>0]=0;  #undo the inversion (now the brain is 1)
+                
+                # Calculo del indicador
+                indicador = ((mascara_nueva>0).sum())/(x*y*z); #indicador=voxeles no zero / volumen img
+                radio = radio+1  ;               
+                # print it
+                delta = abs(indicador-ind_previo);
+                if delta<=delta_minimo : #si se llega al umbral para, sino sigue
+                    break
+                
+                ind_previo = indicador;
+                
+                
+        else:
+                mascara_nueva=0;
+                'metodo solo puede valer 1,2,3 o 4'
+        
+        return mascara_nueva
+                
+        
+        
 
 #
 # EpileptogenicFocusDetectionLogic
@@ -21,6 +212,8 @@ class EpileptogenicFocusDetectionLogic:
     self.BASAL_VOLUME_NAME = 'basalVolume'
     self.ICTAL_VOLUME_NAME = 'ictalVolume'
     self.MRI_VOLUME_NAME = 'mriVolume'
+    
+    self.REGISTERED_ICTAL_VOLUME_NAME = 'ictalVolume_basalVolume'
     
     self.BASAL_ICTAL_MASK_NAME = 'basalIctalMaskVolume'
     self.MRI_BRAIN_MASK_NAME = 'mriBrainMaskVolume'
@@ -219,37 +412,37 @@ class EpileptogenicFocusDetectionLogic:
     return layoutNode
   
   # ---------------------------------------------------------------------------  
-  def compareBasalIctalMRI(self):
-    self.displayVolumeInSlice(self.BASAL_VOLUME_NAME, 'Compare1', 'Axial')
-    self.displayVolumeInSlice(self.BASAL_VOLUME_NAME, 'Compare2', 'Sagittal')
-    self.displayVolumeInSlice(self.BASAL_VOLUME_NAME, 'Compare3', 'Coronal')
+  def compareBasalIctalMRI(self, basalVolumeName, ictalVolumeName, mriVolumeName):
+    self.displayVolumeInSlice(basalVolumeName, 'Compare1', 'Axial')
+    self.displayVolumeInSlice(basalVolumeName, 'Compare2', 'Sagittal')
+    self.displayVolumeInSlice(basalVolumeName, 'Compare3', 'Coronal')    
     
-    self.displayVolumeInSlice(self.ICTAL_VOLUME_NAME, 'Compare4', 'Axial')
-    self.displayVolumeInSlice(self.ICTAL_VOLUME_NAME, 'Compare5', 'Sagittal')
-    self.displayVolumeInSlice(self.ICTAL_VOLUME_NAME, 'Compare6', 'Coronal')
+    self.displayVolumeInSlice(ictalVolumeName, 'Compare4', 'Axial')
+    self.displayVolumeInSlice(ictalVolumeName, 'Compare5', 'Sagittal')
+    self.displayVolumeInSlice(ictalVolumeName, 'Compare6', 'Coronal')
     
-    self.displayVolumeInSlice(self.MRI_VOLUME_NAME, 'Compare7', 'Axial')
-    self.displayVolumeInSlice(self.MRI_VOLUME_NAME, 'Compare8', 'Sagittal')
-    self.displayVolumeInSlice(self.MRI_VOLUME_NAME, 'Compare9', 'Coronal')
+    self.displayVolumeInSlice(mriVolumeName, 'Compare7', 'Axial')
+    self.displayVolumeInSlice(mriVolumeName, 'Compare8', 'Sagittal')
+    self.displayVolumeInSlice(mriVolumeName, 'Compare9', 'Coronal')
     
     crosshairNode = slicer.util.getNode('vtkMRMLCrosshairNode*')
     crosshairNode.SetCrosshairMode(1)
     crosshairNode.SetNavigation(True)
 
   # ---------------------------------------------------------------------------
-  def compareBasalIctalMask(self):
+  def compareBasalIctalMask(self, basalVolumeName, ictalVolumeName, basalIctalMaskName):
        
-    self.displayVolumeInSlice(self.BASAL_VOLUME_NAME, 'Compare1', 'Axial')
-    self.displayVolumeInSlice(self.BASAL_VOLUME_NAME, 'Compare2', 'Sagittal')
-    self.displayVolumeInSlice(self.BASAL_VOLUME_NAME, 'Compare3', 'Coronal')
+    self.displayVolumeInSlice(basalVolumeName, 'Compare1', 'Axial')
+    self.displayVolumeInSlice(basalVolumeName, 'Compare2', 'Sagittal')
+    self.displayVolumeInSlice(basalVolumeName, 'Compare3', 'Coronal')
     
-    self.displayVolumeInSlice(self.ICTAL_VOLUME_NAME, 'Compare4', 'Axial')
-    self.displayVolumeInSlice(self.ICTAL_VOLUME_NAME, 'Compare5', 'Sagittal')
-    self.displayVolumeInSlice(self.ICTAL_VOLUME_NAME, 'Compare6', 'Coronal')
+    self.displayVolumeInSlice(ictalVolumeName, 'Compare4', 'Axial')
+    self.displayVolumeInSlice(ictalVolumeName, 'Compare5', 'Sagittal')
+    self.displayVolumeInSlice(ictalVolumeName, 'Compare6', 'Coronal')
     
-    self.displayVolumeInSlice(self.BASAL_ICTAL_MASK_NAME , 'Compare7', 'Axial')
-    self.displayVolumeInSlice(self.BASAL_ICTAL_MASK_NAME, 'Compare8', 'Sagittal')
-    self.displayVolumeInSlice(self.BASAL_ICTAL_MASK_NAME, 'Compare9', 'Coronal')
+    self.displayVolumeInSlice(basalIctalMaskName , 'Compare7', 'Axial')
+    self.displayVolumeInSlice(basalIctalMaskName, 'Compare8', 'Sagittal')
+    self.displayVolumeInSlice(basalIctalMaskName, 'Compare9', 'Coronal')
     
     crosshairNode = slicer.util.getNode('vtkMRMLCrosshairNode*')
     crosshairNode.SetCrosshairMode(1)
@@ -460,9 +653,17 @@ class EpileptogenicFocusDetectionLogic:
       return thresholded
 
   # ---------------------------------------------------------------------------
-  def computeBasalIctalMask(self):
-    self.computeBasalIctalMaskImplementation(self.BASAL_VOLUME_NAME, self.ICTAL_VOLUME_NAME, self.BASAL_ICTAL_MASK_NAME,3,2,1)
+  def computeBasalIctalMask(self, basalVolumeName, ictalVolumeName, basalIctalMaskVolumeName):
+    self.computeBasalIctalMaskImplementation(basalVolumeName, ictalVolumeName, basalIctalMaskVolumeName,3,2,1)
   
+  # ---------------------------------------------------------------------------
+  def computeStdDevInsideMask(self, subtractionOutputVolumeNode, maskVolumeNode):
+    subtractionArray = slicer.util.array(subtractionOutputVolumeNode.GetName())
+    maskArray = slicer.util.array(maskVolumeNode.GetName())      
+    mask_GreaterThanZeroIndices = (maskArray > 0).nonzero();
+    std_inside_mask = subtractionArray[mask_GreaterThanZeroIndices].std()
+    return std_inside_mask
+    
   # ---------------------------------------------------------------------------
   def getNormalizedImages(self,basalVolumeNode, ictalVolumeNode, threshold, zmax, normalizedBasalVolumeNode, normalizedIctalVolumeNode ):
     basalArray = slicer.util.array(basalVolumeNode.GetName())
@@ -482,8 +683,8 @@ class EpileptogenicFocusDetectionLogic:
     mean_ictal_inside_mask = ictalArray[ictal_mask_GreaterThanZeroIndices].mean()
     std_ictal_inside_mask = ictalArray[ictal_mask_GreaterThanZeroIndices].std()
     # Compute the z scores maps
-    basal_map = numpy.zeros(basalArray.shape,numpy.bool) # maps initialized to zero
-    ictal_map = numpy.zeros(basalArray.shape,numpy.bool)
+    basal_map = np.zeros(basalArray.shape,np.bool) # maps initialized to zero
+    ictal_map = np.zeros(basalArray.shape,np.bool)
     z_basal = abs(basalArray - mean_basal_inside_mask)/std_basal_inside_mask  # 
     z_ictal = abs(ictalArray - mean_ictal_inside_mask)/std_ictal_inside_mask
     z_basal_below_zmax = z_basal < zmax
@@ -737,7 +938,7 @@ class EpileptogenicFocusDetectionLogic:
     c = [r 1-r ones(m,1)]; 
     '''
     for colorIndex in xrange(0,numberOfCoolColors):
-      r = numpy.double(numberOfCoolColors -1 - colorIndex) / (numberOfCoolColors)  
+      r = np.double(numberOfCoolColors -1 - colorIndex) / (numberOfCoolColors)  
       colorNode.SetColor(colorIndex, r, 1-r, 1, 1.0);  
       print "cool color index = " + str(colorIndex)
     '''   hot color table in Matlab
@@ -748,17 +949,17 @@ class EpileptogenicFocusDetectionLogic:
     n=3*numberOfHotColors/8  # fix
     for colorIndex in xrange(0,numberOfHotColors+1):
       if colorIndex < n:
-        r=numpy.double(colorIndex)/n    
+        r=np.double(colorIndex)/n    
         g=0.0   
         b=0.0
       elif colorIndex < 2*n :
         r=1.0  
-        g=numpy.double((colorIndex-n+1))/n 
+        g=np.double((colorIndex-n+1))/n 
         b=0.0
       else: 
         r=1.0    
         g=1.0
-        b=numpy.double((colorIndex-2*n+1))/(numberOfHotColors-2*n)
+        b=np.double((colorIndex-2*n+1))/(numberOfHotColors-2*n)
       colorNode.SetColor(numberOfCoolColors + colorIndex, r, g, b, 1.0); 
       print "hot color index = " + str(numberOfCoolColors + colorIndex)
 
