@@ -7,193 +7,6 @@ from vtk.util import numpy_support
 import numpy as np
 import SimpleITK as sitk
 import sitkUtils
-
-
-class hdfe:
-    def __init__(self):
-        self.BASAL_VOLUME_NAME = 'P1_B'
-        self.ICTAL_VOLUME_NAME = 'P1_Ic'
-        self.MRI_VOLUME_NAME = 'P1_MRI_T2'
-        self.MASK_VOLUME_NAME = 'Mask'
-        
-        # Get the numpy arrays
-        self.inter = slicer.util.array(self.BASAL_VOLUME_NAME)
-        self.ic = slicer.util.array(self.ICTAL_VOLUME_NAME)
-        self.mask = slicer.util.array(self.BASAL_VOLUME_NAME)
-        
-        
-    
-    def binaryClosingWithBall (self, array, radius):
-        sitkArray = sitk.GetImageFromArray(array)
-        sitkClosed = sitk.BinaryMorphologicalClosing(sitkArray, radius)
-        resultArray = sitk.GetArrayFromImage(sitkClosed)        
-        return resultArray
-      
-    def binaryOpeningWithBall (self, array, radius):
-        sitkArray = sitk.GetImageFromArray(array)
-        sitkClosed = sitk.BinaryMorphologicalOpening(sitkArray, radius)
-        resultArray = sitk.GetArrayFromImage(sitkClosed)        
-        return resultArray
-    
-    def binaryConnectedComponents (self, array):
-        sitkArray = sitk.GetImageFromArray(array)
-        sitkLabels = sitk.ConnectedComponent(sitkArray, fullyConnected = True )
-        resultArray = sitk.GetArrayFromImage(sitkLabels)        
-        return resultArray
-      
-    def pushArrayToSlicer(self, array, nodeName='ArrayPushedFromCode', compositeView=0, overWrite=False):
-        sitkImage = sitk.GetImageFromArray(array)
-        sitkUtils.PushToSlicer(sitkImage, nodeName, compositeView, overWrite)
-        
-    def getArrayFromSlicer(self,nodeName):
-        return (slicer.util.array(nodeName))
-      
-    
-    def runTestRellenarMascara(self):
-        matlabMask = self.getArrayFromSlicer('ictal_mask')
-        self.pushArrayToSlicer(matlabMask, 'rellenar_mascara____MascaraNuevaDeMatlab', overWrite=True)
-        
-        rawMask = self.getArrayFromSlicer('ictal_mask_sinRellenar')
-        mask = self.rellenar_mascara(rawMask, 4, 2)
-        self.pushArrayToSlicer(mask, 'rellenar_mascara____MascaraNueva', overWrite=True)
-        
-        self.pushArrayToSlicer(matlabMask-mask, 'rellenar_mascara____DiferenciaCon MascaraDeMatlab', overWrite=True)
-        
-        
-    
-    def rellenar_mascara(self, mascara, metodo, radio):
-        #function [mascara_nueva,vecindad]=rellenar_mascara(mascara,metodo,radio)
-        
-        #funcion que rellena los huecos que pueden quedar en las mascaras. 
-        
-        #mascara es mascara original
-        #metodo puede ser:
-            #1 para labeling
-            #2 para primero  clausura y despues apertura (#cambio el orden en v6.2
-            #3 para primero clausura-apertura y despues labeling #cambio el orden #en v6.2
-            #4 para metodo iterativo (clausura, apertura, labeling) aumentando el
-            #radio del elemento estructurante
-        #radio es el radio usado para apertura y clausura, como elemento
-        #estructurante se usa una esfera
-        
-        #si se elige metodo 1, la entrada radio puede ser cualquier cosa, no se tiene
-        #en cuentas
-        max_iter = 10;          # # de iteraciones maximas para el metodo 4
-        delta_minimo = 9e-4;  # Resuelve conflicto de edad de pacientes pequenos (ninos)-Huecos
-        
-        [alto,ancho,capas]=mascara.shape;
-#        [vecindad] = disco(radio);
-        if metodo==1:
-            pass
-#            auxiliar = mascara<1;
-#            [L,NUM] = bwlabeln(auxiliar,26);#se usa funcion labelling 3d de matlab
-#            M=L;
-#            ###cambio respecto a version anterior:
-#            #en alguinos pocos casos  el fondo no queda en el cluster 1, queda en otro cluster y eso hace
-#            ###que la mascara quede casi toda en 1. Lo que se hace es mirar las
-#            ###puntas, si pertenecen al mismo cluster (fondo ) entonces se usa ese
-#            ###valor. Si no pertenecen al mismo me la juego por el cluster 1
-#            a=M(1,1,1;
-#            b=M(1,1,end);
-#            c=M(1,end,1);
-#            d=M(end,1,1); #podria seguir, solo se usan las 4 esquinas
-#            
-#            
-#            if a==b & b==c & c==d #si las 4 esquinas pertenecen al mismo cluster
-#                M(find(L~=a))=0;
-#            else #si son distintos me la juego por 1
-#                M(find(L~=1))=0;
-#            end
-#            ###fin cambios  --> M(find(L~=1))=0;
-#            mascara_nueva=M<1;
-        elif metodo==2:
-            pass
-#                
-#                se = vecindad;
-#                #mascara_nueva = imopen (mascara,se);
-#                #mascara_nueva = imclose(mascara_nueva,se);
-#                mascara_nueva=imclose(mascara,se);#se aplica morfologia
-#                mascara_nueva = imopen (mascara_nueva,se);
-#                
-        elif metodo==3:
-            pass
-#                
-#                se = vecindad;
-#                #mascara_nueva = imopen (mascara,se);
-#                #mascara_nueva=imclose(mascara_nueva,se);
-#                mascara_nueva=imclose(mascara,se);#se aplica morfologia
-#                mascara_nueva = imopen (mascara_nueva,se);
-#                auxiliar=mascara_nueva<1;
-#                [L,NUM] = bwlabeln(auxiliar,26);#luego se aplica labeling
-#                M=L;
-#                ###cambio respecto a version anterior:
-#            #en alguinos pocos casos  el fondo no queda en el cluster 1, queda en otro cluster y eso hace
-#                ###que la mascara quede casi toda en 1. Lo que se hace es mirar las
-#                ###puntas, si pertenecen al mismo cluster (fondo ) entonces se usa ese
-#                ###valor. Si no pertenecen al mismo me la juego por el cluster 1
-#                a=M(1,1,1);
-#                b=M(1,1,capas);
-#                c=M(1,ancho,1);
-#                d=M(alto,1,1);#podria seguir, solo se usan las 4 esquinas
-#                
-#                if a==b & b==c & c==d
-#                    
-#                    M(find(L~=a))=0;
-#                else #si son distintos me la juego por 1
-#                    M(find(L~=1))=0;
-#                end
-#                ###fin cambios -->  M(find(L~=1))=0;
-#                mascara_nueva=M<1;
-        elif metodo==4: #metodo iterativo
-            indicador = 1;
-            [x,y,z] = mascara.shape;
-            ind_previo = np.inf;
-            delta = np.inf;
-            for it in range(0,max_iter):    #se repite este paso, se va agrandando el radio hasta que el metodo "converge"
-                
-                mascara_nueva = self.binaryClosingWithBall(mascara,radio) # imclose(mascara,se);
-                mascara_nueva = self.binaryOpeningWithBall(mascara_nueva,radio) #imopen(mascara_nueva,se);
-                
-                self.pushArrayToSlicer( mascara_nueva ,'rellenar_mascara_____LuegodeMorfologia' ,  overWrite=True)
-                
-                auxiliar=mascara_nueva.copy(); auxiliar[mascara_nueva<1]=1; auxiliar[mascara_nueva>0]=0; # invert the mask (now the brain is 0 and the background and holes is 1
-                L = self.binaryConnectedComponents(auxiliar)  #[L,NUM] = bwlabeln(auxiliar,26);
-                
-                self.pushArrayToSlicer( L ,'rellenar_mascara_____Labels' ,  overWrite=True)
-                
-                M=L.copy();
-                a=M[0,0,0];
-                b=M[0,0,capas-1];
-                c=M[0,ancho-1,0];
-                d=M[alto-1,1,1];
-                #podria seguir, me quedo con estos nomas
-                if a==b and  b==c and c==d :
-                    #'entro al if'
-                    M[L!=a]=0;
-                else :#si son distintos me la juego por 1
-                    M[L!=1]=0;
-                
-                #M(find(L~=1))=0;
-                mascara_nueva[M<1]=1; mascara_nueva[M>0]=0;  #undo the inversion (now the brain is 1)
-                
-                # Calculo del indicador
-                indicador = ((mascara_nueva>0).sum())/(x*y*z); #indicador=voxeles no zero / volumen img
-                radio = radio+1  ;               
-                # print it
-                delta = abs(indicador-ind_previo);
-                if delta<=delta_minimo : #si se llega al umbral para, sino sigue
-                    break
-                
-                ind_previo = indicador;
-                
-                
-        else:
-                mascara_nueva=0;
-                'metodo solo puede valer 1,2,3 o 4'
-        
-        return mascara_nueva
-                
-        
         
 
 #
@@ -664,13 +477,21 @@ class EpileptogenicFocusDetectionLogic:
     mask_GreaterThanZeroIndices = (maskArray > 0).nonzero();
     std_inside_mask = subtractionArray[mask_GreaterThanZeroIndices].std()
     return std_inside_mask
-    
+
+  # ---------------------------------------------------------------------------------
+  def runGenerateMaskTest(self):  
+    basalVolumeNode = slicer.util.getNode("P1_B")   
+    ictalVolumeNode = slicer.util.getNode("rP1_Ic")  
+    self.generateMask(basalVolumeNode,ictalVolumeNode,0.4,1)  
+ 
   # ---------------------------------------------------------------------------
-  def getNormalizedImages(self,basalVolumeNode, ictalVolumeNode, threshold, zmax, normalizedBasalVolumeNode, normalizedIctalVolumeNode ):
+  def generateMask(self,basalVolumeNode, ictalVolumeNode, threshold, zmax):
     basalArray = slicer.util.array(basalVolumeNode.GetName())
     ictalArray = slicer.util.array(ictalVolumeNode.GetName())
-    normalizedBasalArray = slicer.util.array(normalizedBasalVolumeNode.GetName())
-    normalizedIctalArray = slicer.util.array(normalizedIctalVolumeNode.GetName())
+    normalizedBasalArray = np.zeros(basalArray.shape,np.double)
+    normalizedIctalArray = np.zeros(ictalArray.shape,np.double)
+    #normalizedBasalArray = slicer.util.array(normalizedBasalVolumeNode.GetName())
+    #normalizedIctalArray = slicer.util.array(normalizedIctalVolumeNode.GetName())
     # Create an auxiliar mask using the threshold value
     maxBasal = basalArray.max() 
     maxIctal = ictalArray.max()     
@@ -699,30 +520,208 @@ class EpileptogenicFocusDetectionLogic:
     intersection_region = intersection_map>0 
     basal_normalization_factor = basalArray[intersection_region].mean()
     ictal_normalization_factor = ictalArray[intersection_region].mean()
-    normalizedBasalArray[:] = basalArray/basal_normalization_factor
-    normalizedIctalArray[:] = ictalArray/ictal_normalization_factor
-    normalizedBasalVolumeNode.GetImageData().Modified()
-    normalizedBasalVolumeNode.GetImageData().Modified()
+    print "basal normalization factor= " + str(basal_normalization_factor)
+    print "ictal normalization factor= " + str(ictal_normalization_factor)
+    normalizedBasalArray[:] = np.double(basalArray)/basal_normalization_factor
+    normalizedIctalArray[:] = np.double(ictalArray)/ictal_normalization_factor
     
-    
-  # ---------------------------------------------------------------------------  
-  def generateMask(self, normalizedBasalVolumeNode, normalizedIctalVolumeNode):  
-    normalizedBasalArray = slicer.util.array(normalizedBasalVolumeNode.GetName())
-    normalizedIctalArray = slicer.util.array(normalizedIctalVolumeNode.GetName())   
     max_norm_basal =  normalizedBasalArray.max()    
     max_norm_ictal =  normalizedIctalArray.max()  
+    print "max basal normalized= " + str(max_norm_basal)
+    print "max ictal normalized= " + str( max_norm_ictal)
     basalMask = normalizedBasalArray>0.4* max_norm_basal
     ictalMask = normalizedIctalArray>0.4* max_norm_ictal
     # Create the masks
     mask = basalMask * ictalMask
     volLogic=slicer.modules.volumes.logic()
-    maskVolumeNode = volLogic.CloneVolume(normalizedBasalVolumeNode,'intersection_mask')
+    maskVolumeNode = volLogic.CloneVolume(basalVolumeNode,self.BASAL_ICTAL_MASK_NAME)
     maskArray = slicer.util.array(maskVolumeNode.GetName())
     maskArray[:]=mask
     maskVolumeNode.GetImageData().Modified()
     maskVolumeNode.SetLabelMap(True)  
+    dn=maskVolumeNode.GetDisplayNode()
+    dn.SetAndObserveColorNodeID('vtkMRMLColorTableNodeLabels')
     
+    # Fill the holes in the mask
+    rawMask=slicer.util.array(self.BASAL_ICTAL_MASK_NAME)
+    mask = self.rellenar_mascara(rawMask, 4, 2)
+    maskArray = slicer.util.array(maskVolumeNode.GetName())
+    maskArray[:]=mask
+    maskVolumeNode.GetImageData().Modified()
     
+  #--------------------------------------------------------------------------------
+  
+  def binaryClosingWithBall (self, array, radius):
+    sitkArray = sitk.GetImageFromArray(array)
+    sitkClosed = sitk.BinaryMorphologicalClosing(sitkArray, radius)
+    resultArray = sitk.GetArrayFromImage(sitkClosed)        
+    return resultArray
+      
+  def binaryOpeningWithBall (self, array, radius):
+    sitkArray = sitk.GetImageFromArray(array)
+    sitkClosed = sitk.BinaryMorphologicalOpening(sitkArray, radius)
+    resultArray = sitk.GetArrayFromImage(sitkClosed)        
+    return resultArray
+
+  def binaryConnectedComponents (self, array):
+    sitkArray = sitk.GetImageFromArray(array)
+    sitkLabels = sitk.ConnectedComponent(sitkArray, fullyConnected = True )
+    resultArray = sitk.GetArrayFromImage(sitkLabels)        
+    return resultArray
+  
+  def pushArrayToSlicer(self, array, nodeName='ArrayPushedFromCode', compositeView=0, overWrite=False):
+    sitkImage = sitk.GetImageFromArray(array)
+    sitkUtils.PushToSlicer(sitkImage, nodeName, compositeView, overWrite)
+    
+  def getArrayFromSlicer(self,nodeName):
+    return (slicer.util.array(nodeName))
+  
+
+  def runTestRellenarMascara(self):
+    matlabMask = self.getArrayFromSlicer('ictal_mask')
+    self.pushArrayToSlicer(matlabMask, 'rellenar_mascara____MascaraNuevaDeMatlab', overWrite=True)
+    
+    rawMask = self.getArrayFromSlicer('ictal_mask_sinRellenar')
+    mask = self.rellenar_mascara(rawMask, 4, 2)
+    self.pushArrayToSlicer(mask, 'rellenar_mascara____MascaraNueva', overWrite=True)
+    
+    self.pushArrayToSlicer(matlabMask-mask, 'rellenar_mascara____DiferenciaCon MascaraDeMatlab', overWrite=True)
+    
+        
+    
+  def rellenar_mascara(self, mascara, metodo, radio):
+    #function [mascara_nueva,vecindad]=rellenar_mascara(mascara,metodo,radio)
+    
+    #funcion que rellena los huecos que pueden quedar en las mascaras. 
+    
+    #mascara es mascara original
+    #metodo puede ser:
+        #1 para labeling
+        #2 para primero  clausura y despues apertura (#cambio el orden en v6.2
+        #3 para primero clausura-apertura y despues labeling #cambio el orden #en v6.2
+        #4 para metodo iterativo (clausura, apertura, labeling) aumentando el
+        #radio del elemento estructurante
+    #radio es el radio usado para apertura y clausura, como elemento
+    #estructurante se usa una esfera
+    
+    #si se elige metodo 1, la entrada radio puede ser cualquier cosa, no se tiene
+    #en cuentas
+    max_iter = 10;          # # de iteraciones maximas para el metodo 4
+    delta_minimo = 9e-4;  # Resuelve conflicto de edad de pacientes pequenos (ninos)-Huecos
+    
+    [alto,ancho,capas]=mascara.shape;
+#        [vecindad] = disco(radio);
+    if metodo==1:
+        pass
+#            auxiliar = mascara<1;
+#            [L,NUM] = bwlabeln(auxiliar,26);#se usa funcion labelling 3d de matlab
+#            M=L;
+#            ###cambio respecto a version anterior:
+#            #en alguinos pocos casos  el fondo no queda en el cluster 1, queda en otro cluster y eso hace
+#            ###que la mascara quede casi toda en 1. Lo que se hace es mirar las
+#            ###puntas, si pertenecen al mismo cluster (fondo ) entonces se usa ese
+#            ###valor. Si no pertenecen al mismo me la juego por el cluster 1
+#            a=M(1,1,1;
+#            b=M(1,1,end);
+#            c=M(1,end,1);
+#            d=M(end,1,1); #podria seguir, solo se usan las 4 esquinas
+#            
+#            
+#            if a==b & b==c & c==d #si las 4 esquinas pertenecen al mismo cluster
+#                M(find(L~=a))=0;
+#            else #si son distintos me la juego por 1
+#                M(find(L~=1))=0;
+#            end
+#            ###fin cambios  --> M(find(L~=1))=0;
+#            mascara_nueva=M<1;
+    elif metodo==2:
+        pass
+#                
+#                se = vecindad;
+#                #mascara_nueva = imopen (mascara,se);
+#                #mascara_nueva = imclose(mascara_nueva,se);
+#                mascara_nueva=imclose(mascara,se);#se aplica morfologia
+#                mascara_nueva = imopen (mascara_nueva,se);
+#                
+    elif metodo==3:
+        pass
+#                
+#                se = vecindad;
+#                #mascara_nueva = imopen (mascara,se);
+#                #mascara_nueva=imclose(mascara_nueva,se);
+#                mascara_nueva=imclose(mascara,se);#se aplica morfologia
+#                mascara_nueva = imopen (mascara_nueva,se);
+#                auxiliar=mascara_nueva<1;
+#                [L,NUM] = bwlabeln(auxiliar,26);#luego se aplica labeling
+#                M=L;
+#                ###cambio respecto a version anterior:
+#            #en alguinos pocos casos  el fondo no queda en el cluster 1, queda en otro cluster y eso hace
+#                ###que la mascara quede casi toda en 1. Lo que se hace es mirar las
+#                ###puntas, si pertenecen al mismo cluster (fondo ) entonces se usa ese
+#                ###valor. Si no pertenecen al mismo me la juego por el cluster 1
+#                a=M(1,1,1);
+#                b=M(1,1,capas);
+#                c=M(1,ancho,1);
+#                d=M(alto,1,1);#podria seguir, solo se usan las 4 esquinas
+#                
+#                if a==b & b==c & c==d
+#                    
+#                    M(find(L~=a))=0;
+#                else #si son distintos me la juego por 1
+#                    M(find(L~=1))=0;
+#                end
+#                ###fin cambios -->  M(find(L~=1))=0;
+#                mascara_nueva=M<1;
+    elif metodo==4: #metodo iterativo
+        indicador = 1;
+        [x,y,z] = mascara.shape;
+        ind_previo = np.inf;
+        delta = np.inf;
+        for it in range(0,max_iter):    #se repite este paso, se va agrandando el radio hasta que el metodo "converge"
+            
+            mascara_nueva = self.binaryClosingWithBall(mascara,radio) # imclose(mascara,se);
+            mascara_nueva = self.binaryOpeningWithBall(mascara_nueva,radio) #imopen(mascara_nueva,se);
+            
+            #self.pushArrayToSlicer( mascara_nueva ,'rellenar_mascara_____LuegodeMorfologia' ,  overWrite=True)
+            
+            auxiliar=mascara_nueva.copy(); auxiliar[mascara_nueva<1]=1; auxiliar[mascara_nueva>0]=0; # invert the mask (now the brain is 0 and the background and holes is 1
+            L = self.binaryConnectedComponents(auxiliar)  #[L,NUM] = bwlabeln(auxiliar,26);
+            
+            #self.pushArrayToSlicer( L ,'rellenar_mascara_____Labels' ,  overWrite=True)
+            
+            M=L.copy();
+            a=M[0,0,0];
+            b=M[0,0,capas-1];
+            c=M[0,ancho-1,0];
+            d=M[alto-1,1,1];
+            #podria seguir, me quedo con estos nomas
+            if a==b and  b==c and c==d :
+                #'entro al if'
+                M[L!=a]=0;
+            else :#si son distintos me la juego por 1
+                M[L!=1]=0;
+            
+            #M(find(L~=1))=0;
+            mascara_nueva[M<1]=1; mascara_nueva[M>0]=0;  #undo the inversion (now the brain is 1)
+            
+            # Calculo del indicador
+            indicador = ((mascara_nueva>0).sum())/(x*y*z); #indicador=voxeles no zero / volumen img
+            radio = radio+1  ;               
+            # print it
+            delta = abs(indicador-ind_previo);
+            if delta<=delta_minimo : #si se llega al umbral para, sino sigue
+                break
+            
+            ind_previo = indicador;
+            
+            
+    else:
+            mascara_nueva=0;
+            'metodo solo puede valer 1,2,3 o 4'
+    
+    return mascara_nueva
+                
+          
   # ---------------------------------------------------------------------------  
   def computeBasalIctalMaskImplementation(self,basalVolumeName, ictalVolumeName, basalIctalMaskVolumeName,ra,rb,rc):
       
@@ -807,13 +806,19 @@ class EpileptogenicFocusDetectionLogic:
       return True
 
   # ---------------------------------------------------------------------------
-  def detectFociAContrario(self,basalVolumeNode,ictalVolumeNode, diffOutputVolumeNode, nfaOutputVolumeNode):
+  def detectFociAContrario(self,basalVolumeNode,ictalVolumeNode):
     # setup the CLI module
     parameters = {}    
     # INPUT
     parameters["ictalinputvolume"] = ictalVolumeNode.GetID();
     parameters["interictalinputvolume"] = basalVolumeNode.GetID();
     # OUTPUT
+    diffOutputVolumeNode=slicer.vtkMRMLScalarVolumeNode()
+    slicer.mrmlScene.AddNode(diffOutputVolumeNode)
+    diffOutputVolumeNode.SetName("Diff Output Volume Node")
+    nfaOutputVolumeNode=slicer.vtkMRMLScalarVolumeNode()
+    slicer.mrmlScene.AddNode(nfaOutputVolumeNode)
+    nfaOutputVolumeNode.SetName("NFA Output Volume Node")
     parameters["diffoutputvolume"] = diffOutputVolumeNode.GetID();
     parameters["nfaoutputvolume"] = nfaOutputVolumeNode.GetID();
     
@@ -828,6 +833,14 @@ class EpileptogenicFocusDetectionLogic:
       nfaOutputVolumeNodeArray = slicer.util.array(nfaOutputVolumeNode.GetName())
       nfaOutputVolumeNodeArray[:] = 1 - nfaOutputVolumeNodeArray
       nfaOutputVolumeNode.GetImageData().Modified()  
+
+      maximumValue = np.int(nfaOutputVolumeNodeArray.max())
+      self.createAContrarioFociVisualizationColorMap(maximumValue)
+      colorMapNode=slicer.util.getNode(self.FOCI_ACONTRARIO_DETECTION_COLORMAP_NAME)
+      dnode=nfaOutputVolumeNode.GetDisplayNode()
+      dnode.SetAutoWindowLevel(0)
+      dnode.SetWindowLevelMinMax(0,maximumValue)
+      dnode.SetAndObserveColorNodeID(colorMapNode.GetID())
       return True
     pass
 

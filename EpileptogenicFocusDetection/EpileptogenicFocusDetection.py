@@ -543,11 +543,12 @@ class EpileptogenicFocusDetectionSlicelet(object):
 #------------------------------------------------------------------------------------------------          
   def onComputeBasalAndIctalMaskButtonClicked(self):
     basalVolumeName = self.logic.BASAL_VOLUME_NAME  
+    basalVolumeNode = slicer.util.getNode(basalVolumeName)
     ictalVolumeName = self.logic.REGISTERED_ICTAL_VOLUME_NAME    
-    basalIctalMaskName = self.logic.BASAL_ICTAL_MASK_NAME
     registeredIctalNode = slicer.util.getNode(ictalVolumeName)
     if registeredIctalNode is not None:
-      self.logic.computeBasalIctalMask(basalVolumeName, ictalVolumeName, basalIctalMaskName)  
+      #self.logic.computeBasalIctalMask(basalVolumeName, ictalVolumeName, basalIctalMaskName)  
+      self.logic.generateMask(basalVolumeNode,registeredIctalNode,0.4,1) 
     else:
       print "It was not possible to find the registered-ictal node!"  
 #------------------------------------------------------------------------------------------------    
@@ -637,43 +638,24 @@ class EpileptogenicFocusDetectionSlicelet(object):
     maximumValue = numpy.int(data.max())  
     negativeValuesToHide = numpy.int(value*stddevInside_mask)
     positiveValuesToHide = numpy.int(value*stddevInside_mask)
-    self.logic.showDifferencesBiggerThanStdThreshold(minimumValue, maximumValue, negativeValuesToHide, positiveValuesToHide)   
+    self.logic.showDifferencesBiggerThanStdThreshold(minimumValue, maximumValue, negativeValuesToHide, positiveValuesToHide)  
+    
+     
  #---------------------------------------------------------------------------------------------------------------     
   def onAContrarioDetectionButtonClicked(self):   
-    basalVolumeNode = slicer.util.getNode(self.logic.BASAL_VOLUME_NAME)
-    ictalVolumeNode = slicer.util.getNode(self.logic.REGISTERED_ICTAL_VOLUME_NAME)
-    diffOutputVolumeNode=slicer.vtkMRMLScalarVolumeNode()
-    slicer.mrmlScene.AddNode(diffOutputVolumeNode)
-    diffOutputVolumeNode.SetName("Diff Output Volume Node")
-    nfaOutputVolumeNode=slicer.vtkMRMLScalarVolumeNode()
-    slicer.mrmlScene.AddNode(nfaOutputVolumeNode)
-    nfaOutputVolumeNode.SetName("NFA Output Volume Node")
-    result = self.logic.detectFociAContrario(basalVolumeNode,ictalVolumeNode, diffOutputVolumeNode, nfaOutputVolumeNode)
-    nfaOutputVolumeNodeArray = slicer.util.array("NFA Output Volume Node")
-    #nfaOutputVolumeNodeArray[:] = 1 - nfaOutputVolumeNodeArray
-    #nfaOutputVolumeNode.GetImageData().Modified()
-    maximumValue = numpy.int(nfaOutputVolumeNodeArray.max())
-    self.logic.createAContrarioFociVisualizationColorMap(maximumValue)
-    colorMapNode=slicer.util.getNode(self.logic.FOCI_ACONTRARIO_DETECTION_COLORMAP_NAME)
-    dnode=nfaOutputVolumeNode.GetDisplayNode()
-    dnode.SetAutoWindowLevel(0)
-    dnode.SetWindowLevelMinMax(0,maximumValue)
-    dnode.SetAndObserveColorNodeID(colorMapNode.GetID())
-   
-    #dnode=diffOutputVolumeNode.GetDisplayNode()
-    #dnode.SetAndObserveColorNodeID('vtkMRMLColorTableNodeWarm1')
-    #dnode.SetLowerThreshold(1.01)
-    #dnode.ApplyThresholdOn()
-    
-    #mriVolumeNode = self.MRIAContrarioSelector.currentNode()
-    #if mriVolumeNode is not None:
-    #  backgroundVolumeNode = ictalVolumeNode
-    #else:
-    #  backgroundVolumeNode = mriVolumeNode
-    
-    backgroundVolumeNode = ictalVolumeNode
-    foregroundVolumeNode = nfaOutputVolumeNode
-    self.showActivations(backgroundVolumeNode, foregroundVolumeNode)
+#     basalVolumeNode = slicer.util.getNode(self.logic.BASAL_VOLUME_NAME)
+#     ictalVolumeNode = slicer.util.getNode(self.logic.REGISTERED_ICTAL_VOLUME_NAME)  
+#     result = self.logic.detectFociAContrario(basalVolumeNode,ictalVolumeNode)
+#     nfaOutputVolumeNode = slicer.util.getNode("NFA Output Volume Node")  
+#     backgroundVolumeNode = ictalVolumeNode
+#     foregroundVolumeNode = nfaOutputVolumeNode
+#     self.showActivations(backgroundVolumeNode, foregroundVolumeNode)
+
+    import EpileptogenicFocusDetectionLogic.AContrarioLogic as acl
+    a = acl.AContrarioDetection()
+    a.runTestCreateMask()    
+      
+      
       
 #----------------------------------------------------------------------------------------------
   def showActivations(self,backgroundVolumeNode,foregroundVolumeNode):
