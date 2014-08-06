@@ -38,118 +38,11 @@ class EpileptogenicFocusDetectionLogic:
     self.ICTAL_TO_BASAL_REGISTRATION_TRANSFORM_NAME = 'ictalToBasalTransform'
     self.BASAL_TO_MRI_REGISTRATION_TRANSFORM_NAME = 'basalToMRITransform'
     
-    self.obiToPlanTransformName = 'obiToPlanTransform'
-    self.obiToMeasuredTransformName = "obiToMeasuredTransform"
+    self.ICTAL_BASAL_SUBTRACTION = 'Ictal-Basal Subtraction'
     
     self.FOCI_DETECTION_COLORMAP_NAME = "FociDetectionColorMap"
     self.FOCI_ACONTRARIO_DETECTION_COLORMAP_NAME = "AContrarioFociDetectionColorMap"
-
-    # Declare member variables (mainly for documentation)
-    self.pddDataArray = None
-    self.calculatedDose = None # Computed from Pdd usinf RDF and Electron MUs
-    self.calibrationDataArray = None
-    self.calibrationDataAlignedArray = None # Calibration array registered (X shift and Y scale) to the Pdd curve
-    self.opticalDensityVsDoseFunction = None
-    self.calibrationPolynomialCoefficients = None
-
-  # ---------------------------------------------------------------------------
-  # Use BRAINS registration to register PlanCT to OBI volume
-  # and apply the result to the PlanCT and PlanDose
-  def registerObiToPlanCt(self, obiVolumeID, planCtVolumeID, planDoseVolumeID, planStructuresID):
-    try:
-      qt.QApplication.setOverrideCursor(qt.QCursor(qt.Qt.BusyCursor))
-      parametersRigid = {}
-      parametersRigid["fixedVolume"] = planCtVolumeID
-      parametersRigid["movingVolume"] = obiVolumeID
-      parametersRigid["useRigid"] = True
-      parametersRigid["initializeTransformMode"] = "useMomentsAlign"
-      #parametersRigid["backgroundFillValue"] = -1000.0
-
-      # Set output transform
-      obiToPlanTransformNode = slicer.util.getNode(self.obiToPlanTransformName)
-      if obiToPlanTransformNode == None:
-        obiToPlanTransformNode = slicer.vtkMRMLLinearTransformNode()
-        slicer.mrmlScene.AddNode(obiToPlanTransformNode)
-        obiToPlanTransformNode.SetName(self.obiToPlanTransformName)
-      parametersRigid["linearTransform"] = obiToPlanTransformNode.GetID()
-
-      # Runs the brainsfit registration
-      brainsFit = slicer.modules.brainsfit
-      cliBrainsFitRigidNode = None
-      cliBrainsFitRigidNode = slicer.cli.run(brainsFit, None, parametersRigid)
-
-      waitCount = 0
-      while cliBrainsFitRigidNode.GetStatusString() != 'Completed' and waitCount < 200:
-        self.delayDisplay( "Register OBI to PlanCT using rigid registration... %d" % waitCount )
-        waitCount += 1
-      self.delayDisplay("Register OBI to PlanCT using rigid registration finished")
-      qt.QApplication.restoreOverrideCursor()
-      
-      # Invert output transform (planToObi) to get the desired obiToPlan transform
-      obiToPlanTransformNode.GetMatrixTransformToParent().Invert()
-
-      # Apply transform to plan CT and plan dose
-      planCtVolumeNode = slicer.mrmlScene.GetNodeByID(planCtVolumeID)
-      planCtVolumeNode.SetAndObserveTransformNodeID(obiToPlanTransformNode.GetID())
-      if planCtVolumeID != planDoseVolumeID:
-        planDoseVolumeNode = slicer.mrmlScene.GetNodeByID(planDoseVolumeID)
-        planDoseVolumeNode.SetAndObserveTransformNodeID(obiToPlanTransformNode.GetID())
-      else:
-        print('WARNING: The selected nodes are the same for plan CT and plan dose!')
-      # The output transform was automatically applied to the moving image (the OBI), undo that
-      obiVolumeNode = slicer.mrmlScene.GetNodeByID(obiVolumeID)
-      obiVolumeNode.SetAndObserveTransformNodeID(None)
-      
-      # Apply transform to plan structures
-      planStructuresNode = slicer.mrmlScene.GetNodeByID(planStructuresID)
-      childrenContours = vtk.vtkCollection()
-      planStructuresNode.GetAssociatedChildrenNodes(childrenContours)
-      for contourIndex in xrange(0, childrenContours.GetNumberOfItems()):
-        contour = childrenContours.GetItemAsObject(contourIndex)
-        if contour.IsA('vtkMRMLContourNode'): # There is one color table node in the collection, ignore it
-          contour.SetAndObserveTransformNodeID(obiToPlanTransformNode.GetID())
-
-    except Exception, e:
-      import traceback
-      traceback.print_exc()
     
-  # ---------------------------------------------------------------------------
-  def registerObiToMeasured(self, obiFiducialListID, measuredFiducialListID):
-    try:
-      qt.QApplication.setOverrideCursor(qt.QCursor(qt.Qt.BusyCursor))
-      parametersFiducial = {}
-      parametersFiducial["fixedLandmarks"] = obiFiducialListID
-      parametersFiducial["movingLandmarks"] = measuredFiducialListID
-      
-      # Create linear transform which will store the registration transform
-      obiToMeasuredTransformNode = slicer.util.getNode(self.obiToMeasuredTransformName)
-      if obiToMeasuredTransformNode == None:
-        obiToMeasuredTransformNode = slicer.vtkMRMLLinearTransformNode()
-        slicer.mrmlScene.AddNode(obiToMeasuredTransformNode)
-        obiToMeasuredTransformNode.SetName(self.obiToMeasuredTransformName)
-      parametersFiducial["saveTransform"] = obiToMeasuredTransformNode.GetID()
-      parametersFiducial["transformType"] = "Rigid"
-
-      # Run fiducial registration
-      fiducialRegistration = slicer.modules.fiducialregistration
-      cliFiducialRegistrationRigidNode = None
-      cliFiducialRegistrationRigidNode = slicer.cli.run(fiducialRegistration, None, parametersFiducial)
-
-      waitCount = 0
-      while cliFiducialRegistrationRigidNode.GetStatusString() != 'Completed' and waitCount < 200:
-        self.delayDisplay( "Register MEASURED to OBI using fiducial registration... %d" % waitCount )
-        waitCount += 1
-      self.delayDisplay("Register MEASURED to OBI using fiducial registration finished")
-      qt.QApplication.restoreOverrideCursor()
-      
-      # Apply transform to MEASURED fiducials
-      measuredFiducialsNode = slicer.mrmlScene.GetNodeByID(measuredFiducialListID)
-      measuredFiducialsNode.SetAndObserveTransformNodeID(obiToMeasuredTransformNode.GetID())
-
-      return cliFiducialRegistrationRigidNode.GetParameterAsString('rms')
-    except Exception, e:
-      import traceback
-      traceback.print_exc()
 
   # ---------------------------------------------------------------------------
   def displayVolume(self, volumeName):
@@ -304,7 +197,14 @@ class EpileptogenicFocusDetectionLogic:
         ictalToBasalTransformNode.SetAndObserveTransformNodeID(basalToMRITransformNode.GetID())
       else:
         print('registerBasalToMRI: ictalToBasalTransformNode.SetAndObserveTransformNodeID(basalToMRITransformNode.GetID()) failed') 
-        
+      # associate the mask with the new transformation
+      mask = slicer.util.getNode(self.BASAL_ICTAL_MASK_NAME); 
+      if mask is not None: 
+        mask.SetAndObserveTransformNodeID(basalToMRITransformNode.GetID())
+      # associate the ictal volume in the basal reference frame
+      ictalVolume_BasalVolume = slicer.util.getNode(self.REGISTERED_ICTAL_VOLUME_NAME); 
+      if ictalVolume_BasalVolume is not None:
+        ictalVolume_BasalVolume.SetAndObserveTransformNodeID(basalToMRITransformNode.GetID())
     return ret
   
   # ---------------------------------------------------------------------------      
@@ -485,11 +385,11 @@ class EpileptogenicFocusDetectionLogic:
     self.generateMask(basalVolumeNode,ictalVolumeNode,0.4,1)  
  
   # ---------------------------------------------------------------------------
-  def generateMask(self,basalVolumeNode, ictalVolumeNode, threshold, zmax):
+  def generateMask(self,basalVolumeNode, ictalVolumeNode, threshold, zmax):  
     basalArray = slicer.util.array(basalVolumeNode.GetName())
     ictalArray = slicer.util.array(ictalVolumeNode.GetName())
-    normalizedBasalArray = np.zeros(basalArray.shape,np.double)
-    normalizedIctalArray = np.zeros(ictalArray.shape,np.double)
+    self.normalizedBasalArray = np.zeros(basalArray.shape,np.double)
+    self.normalizedIctalArray = np.zeros(ictalArray.shape,np.double)
     #normalizedBasalArray = slicer.util.array(normalizedBasalVolumeNode.GetName())
     #normalizedIctalArray = slicer.util.array(normalizedIctalVolumeNode.GetName())
     # Create an auxiliar mask using the threshold value
@@ -522,15 +422,15 @@ class EpileptogenicFocusDetectionLogic:
     ictal_normalization_factor = ictalArray[intersection_region].mean()
     print "basal normalization factor= " + str(basal_normalization_factor)
     print "ictal normalization factor= " + str(ictal_normalization_factor)
-    normalizedBasalArray[:] = np.double(basalArray)/basal_normalization_factor
-    normalizedIctalArray[:] = np.double(ictalArray)/ictal_normalization_factor
+    self.normalizedBasalArray[:] = np.double(basalArray)/basal_normalization_factor
+    self.normalizedIctalArray[:] = np.double(ictalArray)/ictal_normalization_factor
     
-    max_norm_basal =  normalizedBasalArray.max()    
-    max_norm_ictal =  normalizedIctalArray.max()  
+    max_norm_basal =  self.normalizedBasalArray.max()    
+    max_norm_ictal =  self.normalizedIctalArray.max()  
     print "max basal normalized= " + str(max_norm_basal)
     print "max ictal normalized= " + str( max_norm_ictal)
-    basalMask = normalizedBasalArray>0.4* max_norm_basal
-    ictalMask = normalizedIctalArray>0.4* max_norm_ictal
+    basalMask = self.normalizedBasalArray>0.4* max_norm_basal
+    ictalMask = self.normalizedIctalArray>0.4* max_norm_ictal
     # Create the masks
     mask = basalMask * ictalMask
     volLogic=slicer.modules.volumes.logic()
@@ -549,34 +449,34 @@ class EpileptogenicFocusDetectionLogic:
     maskArray[:]=mask
     maskVolumeNode.GetImageData().Modified()
     
+    
   #--------------------------------------------------------------------------------
-  
   def binaryClosingWithBall (self, array, radius):
     sitkArray = sitk.GetImageFromArray(array)
     sitkClosed = sitk.BinaryMorphologicalClosing(sitkArray, radius)
     resultArray = sitk.GetArrayFromImage(sitkClosed)        
     return resultArray
-      
+ 
+ #--------------------------------------------------------------------------------     
   def binaryOpeningWithBall (self, array, radius):
     sitkArray = sitk.GetImageFromArray(array)
     sitkClosed = sitk.BinaryMorphologicalOpening(sitkArray, radius)
     resultArray = sitk.GetArrayFromImage(sitkClosed)        
     return resultArray
-
+#--------------------------------------------------------------------------------
   def binaryConnectedComponents (self, array):
     sitkArray = sitk.GetImageFromArray(array)
     sitkLabels = sitk.ConnectedComponent(sitkArray, fullyConnected = True )
     resultArray = sitk.GetArrayFromImage(sitkLabels)        
     return resultArray
-  
+ #--------------------------------------------------------------------------------
   def pushArrayToSlicer(self, array, nodeName='ArrayPushedFromCode', compositeView=0, overWrite=False):
     sitkImage = sitk.GetImageFromArray(array)
     sitkUtils.PushToSlicer(sitkImage, nodeName, compositeView, overWrite)
-    
+  #--------------------------------------------------------------------------------    
   def getArrayFromSlicer(self,nodeName):
     return (slicer.util.array(nodeName))
-  
-
+  #--------------------------------------------------------------------------------  
   def runTestRellenarMascara(self):
     matlabMask = self.getArrayFromSlicer('ictal_mask')
     self.pushArrayToSlicer(matlabMask, 'rellenar_mascara____MascaraNuevaDeMatlab', overWrite=True)
@@ -587,8 +487,7 @@ class EpileptogenicFocusDetectionLogic:
     
     self.pushArrayToSlicer(matlabMask-mask, 'rellenar_mascara____DiferenciaCon MascaraDeMatlab', overWrite=True)
     
-        
-    
+   #--------------------------------------------------------------------------------       
   def rellenar_mascara(self, mascara, metodo, radio):
     #function [mascara_nueva,vecindad]=rellenar_mascara(mascara,metodo,radio)
     
@@ -793,7 +692,7 @@ class EpileptogenicFocusDetectionLogic:
       return True      
   
   # ---------------------------------------------------------------------------
-  def subtractImages(self,ictalVolumeNode,basalVolumeNode, outputVolumeNode):
+  def subtractImages_old(self,ictalVolumeNode,basalVolumeNode, outputVolumeNode):
     parameters = {} 
     parameters['inputVolume1'] = ictalVolumeNode.GetID() 
     parameters['inputVolume2'] = basalVolumeNode.GetID() 
@@ -804,7 +703,20 @@ class EpileptogenicFocusDetectionLogic:
       return False
     else:
       return True
-
+  
+  #----------------------------------------------------------------------------
+  def subtractImages(self):  
+    resta = 100 * (self.normalizedIctalArray - self.normalizedBasalArray)  
+    outputVolumeNode = slicer.util.getNode(self.ICTAL_BASAL_SUBTRACTION)
+    if outputVolumeNode is None:
+      basalVolumeNode = slicer.util.getNode(self.BASAL_VOLUME_NAME)
+      volLogic=slicer.modules.volumes.logic()
+      outputVolumeNode = volLogic.CloneVolume(basalVolumeNode,self.ICTAL_BASAL_SUBTRACTION)
+    outputArray=slicer.util.array(self.ICTAL_BASAL_SUBTRACTION)
+    outputArray[:]=resta
+    outputVolumeNode.GetImageData().Modified()
+    return True
+    
   # ---------------------------------------------------------------------------
   def detectFociAContrario(self,basalVolumeNode,ictalVolumeNode):
     # setup the CLI module

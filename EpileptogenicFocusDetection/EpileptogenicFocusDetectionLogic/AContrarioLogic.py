@@ -5,49 +5,32 @@ import SimpleITK as sitk
 import sitkUtils
 
 
-
-
-class PruebasNumpy:
-    def __init__(self):
-      pass
-    
-    def pruebas(self):
-      #Pruebas numpy
-      
-      
-      X=np.array([[1, 2], [3, 0]])
-      Y=np.array([[1, 0], [0, 1]])
-      
-      #media de todos
-      X.mean()
-      
-      # indices de los elementos positivos
-      nonZeroIndices=X.nonzero()
-      
-      # media de los positivos
-      X[nonZeroIndices].mean()
-      # lo mismo
-      X[X>0].mean()
-      
-      # element-wise logical op
-      (X>0) & (Y>0)
-      
-      # create an array with the shape of X
-      size=X.shape
-      M=np.zeros(size,np.uint8)
-
+        
+        
 class AContrarioDetection:
     def __init__(self):
-        self.BASAL_VOLUME_NAME = 'P1_B'
-        self.ICTAL_VOLUME_NAME = 'P1_Ic'
-        self.MRI_VOLUME_NAME = 'P1_MRI_T2'
-        self.MASK_VOLUME_NAME = 'Mask'
+        
+        self.savedir = '/home/agomez/Software/epiliepsia/UltimaVersionAContrarioParaSlicer/AContrarioParaSlicer/salida/'
+         
+        self.pushImages = False  
+        self.saveImages = False  #OJO requiere el push previo (habilitar solo en conjunto con el push)
+                        
+        self.BASAL_VOLUME_NAME = 'basalVolume'
+        self.ICTAL_VOLUME_NAME = 'ictalVolume'
+            
+        self.MRI_VOLUME_NAME = 'mriVolume'
+        self.MASK_VOLUME_NAME = 'AContrarioMask'
+        
+        self.REGISTERED_ICTAL_VOLUME_NAME = 'ictalVolume_basalVolume'
+        self.FOCI_ACONTRARIO_DETECTION_COLORMAP_NAME = "AContrarioFociDetectionColorMap"
+        
+        self.ACONTRARIO_OUTPUT = "NFA Output Volume Node"
         
         # Get the numpy arrays
-        self.inter = slicer.util.array(self.BASAL_VOLUME_NAME)
-        self.ic = slicer.util.array(self.ICTAL_VOLUME_NAME)
-        self.mask = slicer.util.array(self.BASAL_VOLUME_NAME)
-        self.ra = 3; self.rb = 2; self.rc = 1;
+        self.inter = self.getArrayFromSlicer(self.BASAL_VOLUME_NAME)
+        self.ic = self.getArrayFromSlicer(self.REGISTERED_ICTAL_VOLUME_NAME)
+        self.mask = self.getArrayFromSlicer(self.BASAL_VOLUME_NAME)
+        self.ra = 2; self.rb = 3; self.rc = 1;
         
         self.interNormalized = self.inter
         self.icNormalized = self.ic
@@ -124,18 +107,124 @@ class AContrarioDetection:
         
         
         pass
-              
+    
+    def runTestSpotsNfa(self):
+        
+        scales_in = np.array([[1, 2, 1], [2, 3, 1], [3, 4, 1]],np.uint32);
+        
+        nfaPos_1 = self.getArrayFromSlicer('acontrario_detection___nfaPos_1___python')
+        nfaPos_2 = self.getArrayFromSlicer('acontrario_detection___nfaPos_2___python')
+        nfaPos_3 = self.getArrayFromSlicer('acontrario_detection___nfaPos_3___python')
+
+        
+        [ spots_pos, nfaValues_pos ] = self.spots_nfa(nfaPos_1, nfaPos_2, nfaPos_3, scales_in);
+        
+        self.pushArrayToSlicer(spots_pos, 'acontrario_detection___spots_pos___python', overWrite=True)
+        self.saveNode('acontrario_detection___spots_pos___python','acontrario_detection___spots_pos___python.img')
+        self.pushArrayToSlicer(nfaValues_pos, 'acontrario_detection___nfaValues_pos___python', overWrite=True)
+        self.saveNode('acontrario_detection___nfaValues_pos___python','acontrario_detection___nfaValues_pos___python.img')
+        
+        
+    def runAContrario(self):
+        
+        #ic=self.ic[0:64,0:64,0:64].copy()
+        #inter=self.inter[0:64,0:64,0:64].copy()
+        
+        ic=self.ic
+        inter=self.inter
+        [spots_pos, nfaValues_pos] = self.acontrario_detection(ic, inter, debug=False)
+    
+        
+        basalVolumeNode = slicer.util.getNode(self.BASAL_VOLUME_NAME)    
+        #see if there is a previous node
+        nfaOutputVolumeNode = slicer.util.getNode(self.ACONTRARIO_OUTPUT)
+        
+        
+        if not nfaOutputVolumeNode==None:
+            #delete the existing node
+            slicer.mrmlScene.RemoveNode(nfaOutputVolumeNode)
+            volumeNode = None
+            
+        if nfaOutputVolumeNode==None :
+            # clone the original basal volume
+            volLogic=slicer.modules.volumes.logic()
+            nfaOutputVolumeNode = volLogic.CloneVolume(basalVolumeNode,self.ACONTRARIO_OUTPUT)
+            
+        # Asegurar que el nombre sea el correcto
+        nfaOutputVolumeNode.SetName(self.ACONTRARIO_OUTPUT)        
+        
+        # now set the data in the node (remember to undo transposition)
+        nodeArray = slicer.util.array(nfaOutputVolumeNode.GetName())
+        nfaValues_pos[:] = 1 - nfaValues_pos         
+        nodeArray[:]=np.transpose(nfaValues_pos,(2,1,0)).copy() 
+        nfaOutputVolumeNode.GetImageData().Modified()
+
+        maximumValue = np.int(nfaValues_pos.max())
+        self.createAContrarioFociVisualizationColorMap(maximumValue)
+        colorMapNode=slicer.util.getNode(self.FOCI_ACONTRARIO_DETECTION_COLORMAP_NAME)
+        dnode=nfaOutputVolumeNode.GetDisplayNode()
+        dnode.SetAutoWindowLevel(0)
+        dnode.SetWindowLevelMinMax(0,maximumValue)
+        dnode.SetAndObserveColorNodeID(colorMapNode.GetID())
+        
+        pass   
+    
+     
+    def createAContrarioFociVisualizationColorMap(self, maximumValue): 
+      numberOfHotColors =  maximumValue+1 # includes zero
+      print "number of hot colors (including zero) = " + str(numberOfHotColors)
+    
+      colorNode = slicer.util.getNode(self.FOCI_ACONTRARIO_DETECTION_COLORMAP_NAME)
+      if colorNode is None:
+        colorNode = slicer.vtkMRMLColorTableNode() 
+        slicer.mrmlScene.AddNode(colorNode)
+        colorNode.SetName(self.FOCI_ACONTRARIO_DETECTION_COLORMAP_NAME)
+      
+      colorNode.SetTypeToUser()   
+      colorNode.SetNumberOfColors(numberOfHotColors);
+      #colorNode.SetColor(0, "zero", 0.0, 0.0, 0.0, 1.0);
+      #colorNode.SetColor(1, "one", 1.0, 0.0, 0.0, 1.0);
+      #colorNode.SetColor(2, "two", 0.0, 1.0, 0.0, 1.0);
+      colorNode.SetNamesFromColors()
+      '''   hot color table in Matlab
+       r = [(1:n)'/n; ones(m-n,1)];
+       g = [zeros(n,1); (1:n)'/n; ones(m-2*n,1)];
+       b = [zeros(2*n,1); (1:m-2*n)'/(m-2*n)]; 
+       '''  
+      n=3*numberOfHotColors/8  # fix
+      for colorIndex in xrange(0,numberOfHotColors):
+        if colorIndex < n:
+          r=np.double(colorIndex)/n    
+          g=0.0   
+          b=0.0
+        elif colorIndex < 2*n :
+          r=1.0  
+          g=np.double((colorIndex-n+1))/n 
+          b=0.0
+        else: 
+          r=1.0    
+          g=1.0
+          b=np.double((colorIndex-2*n+1))/(numberOfHotColors-2*n)
+        colorNode.SetColor(colorIndex, r, g, b, 1.0); 
+        print "hot color index = " + str(colorIndex)
+      # opacity in zero is zero
+      colorNode.SetOpacity(0,0);  
+    
+                  
     def runTestAContrario(self):
         
         #ic=self.ic[0:64,0:64,0:64].copy()
         #inter=self.inter[0:64,0:64,0:64].copy()
+        
+        ic=self.ic
+        inter=self.inter
         self.acontrario_detection(ic, inter, debug=True)
         
-        sitkIcNormalized = sitk.GetImageFromArray(self.icNormalized)
-        sitkUtils.PushBackground(sitkIcNormalized, 'P1_Ic_normalized',overwrite = True)
-        
-        sitkSubtstraction = sitk.GetImageFromArray(self.Substraction)
-        sitkUtils.PushBackground(sitkSubtstraction, 'Normalized_substraction',overwrite = True)
+#        sitkIcNormalized = sitk.GetImageFromArray(self.icNormalized)
+#        sitkUtils.PushBackground(sitkIcNormalized, 'P1_Ic_normalized',overwrite = True)
+#        
+#        sitkSubtstraction = sitk.GetImageFromArray(self.Substraction)
+#        sitkUtils.PushBackground(sitkSubtstraction, 'Normalized_substraction',overwrite = True)
         
         #self.create_mask(self.ic, self.inter, self.ra, self.rb, self.rc, debug=True)
         #slicer.app.layoutManager().setLayout(self.customLayoutGridView3x3)
@@ -155,9 +244,11 @@ class AContrarioDetection:
         
     def runTestCreateMask(self):
         
-        self.create_mask(self.ic, self.inter, self.ra, self.rb, self.rc, debug=True)
-        slicer.app.layoutManager().setLayout(self.customLayoutGridView3x3)
-        self.compareMasks()
+        mask = self.create_mask(self.ic, self.inter, self.ra, self.rb, self.rc, debug=True)
+        self.pushArrayToSlicer(mask, self.MASK_VOLUME_NAME,overWrite=True)
+        
+        #slicer.app.layoutManager().setLayout(self.customLayoutGridView3x3)
+        #self.compareMasks()
         
         pass
         
@@ -195,19 +286,105 @@ class AContrarioDetection:
 #        resultArray = sitk.GetArrayFromImage(sitkConvolution)        
 #        return resultArray
 #         
-    def pushArrayToSlicer(self, array, nodeName='ArrayPushedFromCode', compositeView=0, overWrite=False):
+    def pushArrayToSlicerBasedOnSitk(self, array, nodeName='ArrayPushedFromCode', compositeView=0, overWrite=False):
         sitkImage = sitk.GetImageFromArray(array)
         sitkUtils.PushToSlicer(sitkImage, nodeName, compositeView, overWrite)
         
-    def ksdensity(self,a):
-        nbins=100;
-        range=None; normed=False; weights=None; density=True
+
+    def saveNode(self,nodeName,filename):
+        volumeNode = slicer.util.getNode(nodeName)
+        
+        #Esto es por
+        #http://slicer-users.65878.n3.nabble.com/Saving-an-Image-Using-Slicer-Python-Script-td4027056.html
+        # como los nodos que mandamos son nuevos no tienen asociado un storage node
+        storable=slicer.vtkMRMLStorableNode.SafeDownCast(volumeNode) 
+        if storable.GetStorageNode()==None:
+            storage=storable.CreateDefaultStorageNode()
+            slicer.mrmlScene.AddNode(storage)
+            storable.SetAndObserveStorageNodeID(storage.GetID())
+        # si no hacemos lo anterior, saveNode directamente no anda
+        
+        
+        fullfilename = self.savedir + filename
+        print fullfilename
+        if volumeNode!=None :
+            slicer.util.saveNode(volumeNode, fullfilename)
+        else:
+            print 'No anduvo el saveNode'
+    
+    
+    def getArrayFromSlicer(self, nodeName):
+        nodeArray = slicer.util.array(nodeName)
+        
+        if nodeArray==None:
+            return None
+        
+        # slicer.util.array returns the array in reversed order 
+        array=nodeArray.copy()
+        array = np.transpose(array,(2,1,0)).copy()
+        return array
+        
+    def pushArrayToSlicer(self, array, nodeName='ArrayPushedFromCode', compositeView=0, overWrite=False):
+        
+        basalVolumeNode = slicer.util.getNode(self.BASAL_VOLUME_NAME)
+        if basalVolumeNode==None:
+            print 'pushArrayToSlicer failed: there is no basalVolumeNode set in Slicer with name:  ', self.BASAL_VOLUME_NAME
+            return
+        
+        
+        #see if there is a previous node
+        volumeNode = slicer.util.getNode(nodeName)
+        
+        
+        if overWrite and not volumeNode==None:
+            #delete the existing node
+            slicer.mrmlScene.RemoveNode(volumeNode)
+            volumeNode = None
+            
+        if volumeNode==None :
+            # clone the original basal volume
+            volLogic=slicer.modules.volumes.logic()
+            volumeNode = volLogic.CloneVolume(basalVolumeNode,nodeName)
+            
+        # Asegurar que el nombre sea el correcto
+        volumeNode.SetName(nodeName)        
+        
+        # now set the data in the node (remember to undo transposition)
+        nodeArray = slicer.util.array(volumeNode.GetName())
+        nodeArray[:]=np.transpose(array,(2,1,0)).copy() 
+        volumeNode.GetImageData().Modified()
+        
+        
+        # set as a label map
+        #volumeNode.SetLabelMap(True) 
+        
+        # Set visible
+        volumeID = volumeNode.GetID()
+        selectionNode = slicer.app.applicationLogic().GetSelectionNode()
+        selectionNode.SetReferenceActiveVolumeID( volumeID )
+        slicer.app.applicationLogic().PropagateVolumeSelection()
+        
+        
+        
+    def ksdensity(self,a,nbins=100):
+        #POR AHORA NADA MAS QUE UN HISTOGRAMA SUAVIZADO
+
+        range=None; normed=True; weights=None; density=True
         [hist, bin_edges] = np.histogram(a, nbins, range, normed, weights,density)
         
         # histogram returns bin_edges (nbins+1 values), we need bin centers (nbins values)
         bin_centers=(bin_edges[0:-1]+bin_edges[1:])/2.0 
         
-        return hist, bin_centers
+        smooth_win=5;
+        smooth_hist = np.convolve(hist, np.ones(smooth_win)/smooth_win, 'full')
+        bin_length = bin_edges[1]-bin_edges[0];
+        
+        
+        extended_bins = ( bin_centers[0]-bin_length * (smooth_win-1)/2 ) + np.arange(0,hist.size+(smooth_win-1)) * bin_length
+        
+               
+        #return hist, bin_edges[1:]
+        return smooth_hist, extended_bins
     
     def acontrario_det_scale(self,esc,scales_in,scales_out,ldif,dif,mask,grid_step):
                 
@@ -224,9 +401,27 @@ class AContrarioDetection:
         print 'Performing local test...'
         [ pfaL_Pos, T_eff, Ntest ] = self.acontrario_local(ldif,mask,ra1,rb1,rc1,ra2,rb2,rc2,grid_step);
         
+        if self.pushImages:
+            self.pushArrayToSlicer(T_eff, 'acontrario_det_scale___T_eff___python', overWrite=True)
+        if self.saveImages:
+            self.saveNode('acontrario_det_scale___T_eff___python','acontrario_det_scale___T_eff___python.img')
+        if self.pushImages:
+            self.pushArrayToSlicer(pfaL_Pos, 'acontrario_local___pfaL_Pos___python', overWrite=True)
+        if self.saveImages:
+            self.saveNode('acontrario_local___pfaL_Pos___python','acontrario_local___pfaL_Pos___python.img')
+        
+       
+        
+                       
         # Global test
         print 'Performing global test...'
         pfaG_Pos = self.acontrario_global(dif,mask,T_eff,ra1,rb1,rc1);
+        if self.pushImages:
+            self.pushArrayToSlicer(pfaG_Pos, 'acontrario_global___pfaG_Pos___python', overWrite=True)
+        if self.saveImages:
+            self.saveNode('acontrario_global___pfaG_Pos___python','acontrario_global___pfaG_Pos___python.img')
+        
+        
         
         # Combined measurement
         pfaPos = pfaG_Pos + pfaL_Pos;
@@ -420,13 +615,17 @@ class AContrarioDetection:
         #==========================================================================
         
         # Define the testing grid T.
-        stepA = np.ceil(grid_step*ra1)+1;
-        stepB = np.ceil(grid_step*rb1)+1;
-        stepC = np.ceil(grid_step*rc1);
+        stepA = int(np.ceil(grid_step*ra1)+1);
+        stepB = int(np.ceil(grid_step*rb1)+1);
+        stepC = int(np.ceil(grid_step*rc1)  );
         T = np.zeros((n,p,q));
+        print 'Steps: ', stepA,stepB,stepC
         T[0::stepA,0::stepB,0::stepC] = 1;
         T[mask<=0] = 0;
-        T_eff = T;
+        T_eff = T.copy();
+        
+        
+        #return  pfaPos, T_eff, Ntest
         
         # Gaussian smooth applied to the sustraction image in order to diminish the 
         # effect of the foci in the computation of the Gaussian density parameters. 
@@ -685,8 +884,8 @@ class AContrarioDetection:
         mask = np.zeros(mask_aux.shape)
         mask[np.abs(mask_aux-kernel_aux.sum())<0.001]=1  #Esto parece ser una erosion mas que un filtrado
         
-        self.pushArrayToSlicer(mask_in, 'acontrario_global___mask_in', overWrite=True)
-        self.pushArrayToSlicer(mask, 'acontrario_global___mask', overWrite=True)
+        #self.pushArrayToSlicer(mask_in, 'python_acontrario_global___mask_in', overWrite=True)
+        #self.pushArrayToSlicer(mask, 'python_acontrario_global___mask', overWrite=True)
         
         # Gaussian smooth applied to the sustraction image in order to diminish the 
         # effect of the foci in the computation of the empirical histogram. 
@@ -722,6 +921,10 @@ class AContrarioDetection:
         #log_density = np.log((ksdensity(difM_subSampled(:)) + epsilon_machine));
         log_density = np.log(hist + epsilon_machine);
         
+        print hist
+        print bin_edges
+        #print log_density
+        
         # The following step is done only to obtain the bins were the density was
         # computed. They cannot be obtained in the previous step because we want
         # to obtain directly the log(density).
@@ -752,7 +955,10 @@ class AContrarioDetection:
                         if np.sum(bin_edges >= difM[j,k,l]) > 0 :
                             pfaPos[j,k,l] = np.log(np.sum(np.exp(log_density[bin_edges >= difM[j,k,l]] - max(log_density[bin_edges >= difM[j,k,l]]) ))) + max(log_density[bin_edges >= difM[j,k,l]]);                                 
                         else :
-                            pfaPos[j,k,l] = -1e308; # Minimum value not -Inf
+                            #Se asigna el ultimo valor de la log_density 
+                            pfaPos[j,k,l] = log_density[-1];
+                            print 'np.sum(bin_edges >= difM[j,k,l]) <= 0', j,k,l, difM[j,k,l], 'pfaPos=',pfaPos[j,k,l]
+                            
                             
         return pfaPos
           
@@ -778,6 +984,10 @@ class AContrarioDetection:
         #grid_step = 0.3;        
         scales_in = np.array([[2, 1, 1], [3, 2, 1], [4, 3, 1]],np.uint32);
         scales_out = np.array([[3, 2, 1],[4, 3, 1],[5, 4, 1]],np.uint32);
+        
+        #para respetar la forma de la cabeza segun como se carga en slicer
+        scales_in = np.array([[1, 2, 1], [2, 3, 1], [3, 4, 1]],np.uint32);
+        scales_out = np.array([[2, 3, 1],[3, 4, 1],[4, 5, 1]],np.uint32);
         total_esc = scales_in.shape[1];
         grid_step = 0.3;  
         
@@ -797,12 +1007,29 @@ class AContrarioDetection:
         
         # Generate the brain mask.
         #mask = create_mask(ic,inter,scales_in(2,1),scales_in(2,2),scales_in(2,3));
-        #ra=scales_in[1,0]; rb= scales_in[1,1]; rc=scales_in[1,2]
-        ra=3; rb=2; rc=1; #PROVISORIO (NO ME ANDA BIEN sitkMaskClosedFilled = sitk.BinaryFillhole(sitkMaskClosed) si le paso scale_in
-        mask = self.create_mask(ic, inter, ra,rb,rc, debug)
+        #ra=scales_in[1,0]; rb= scales_in[1,1]; rc=scales_in[1,2] #TODO
+        ra=scales_in[1,0];rb=scales_in[1,1];rc=scales_in[1,2];
+        #ra=3; rb=2; rc=1; #PROVISORIO (NO ME ANDA BIEN sitkMaskClosedFilled = sitk.BinaryFillhole(sitkMaskClosed) si le paso scale_in
+        print ra,rb,rc
+        mask = self.create_mask(ic, inter, int(ra),int(rb),int(rc), debug)
+        
+        if self.pushImages:
+            self.pushArrayToSlicer(mask, 'acontrario_detection___create_mask___python', overWrite=True)
+        if self.saveImages:
+            self.saveNode('acontrario_detection___create_mask___python','acontrario_detection___create_mask___python.img')
+        
+        
         
         # Normalize the scans to have relative photon counts.
         ic, inter = self.normalization(ic,inter,mask);
+        
+        if self.pushImages:
+            self.pushArrayToSlicer(ic, 'acontrario_detection___normalization_ic___python', overWrite=True)
+            self.pushArrayToSlicer(inter, 'acontrario_detection___normalization_in___python', overWrite=True)
+        if self.saveImages:    
+            self.saveNode('acontrario_detection___normalization_ic___python','acontrario_detection___normalization_ic___python.img')
+            self.saveNode('acontrario_detection___normalization_in___python','acontrario_detection___normalization_in___python.img')
+        
         
         #
         print "Luego de la normalizacion"
@@ -824,6 +1051,16 @@ class AContrarioDetection:
         dif = ic - inter;
         ldif = lic - lin;
         
+        if self.pushImages:
+            self.pushArrayToSlicer(dif, 'acontrario_detection___dif___python', overWrite=True)
+            self.pushArrayToSlicer(ldif, 'acontrario_detection___ldif___python', overWrite=True)
+        if self.saveImages:
+            self.saveNode('acontrario_detection___dif___python','acontrario_detection___dif___python.img')
+            self.saveNode('acontrario_detection___ldif___python','acontrario_detection___ldif___python.img')
+        
+        
+        
+      
         # Make tests for each scale.
         #
         #disp(['Processing scale = 1 of ' num2str(total_esc)]);
@@ -832,21 +1069,40 @@ class AContrarioDetection:
         
         #disp(['Processing scale = 2 of ' num2str(total_esc)]);
         print 'Processing scale = 2 of ',  total_esc, ' COMENTADO'
-        #nfaPos_2 = self.acontrario_det_scale(1,scales_in,scales_out,ldif,dif,mask,grid_step);
-        nfa_Pos2=nfaPos_1.copy()
+        nfaPos_2 = self.acontrario_det_scale(1,scales_in,scales_out,ldif,dif,mask,grid_step);
+        #nfa_Pos2=nfaPos_1.copy() #TODO
         
         #disp(['Processing scale = 3 of ' num2str(total_esc)]);
         print 'Processing scale = 3 of ',  total_esc, ' COMENTADO'
-        #nfaPos_3 = self.acontrario_det_scale(2,scales_in,scales_out,ldif,dif,mask,grid_step);
-        nfa_Pos3=nfaPos_1.copy()
+        nfaPos_3 = self.acontrario_det_scale(2,scales_in,scales_out,ldif,dif,mask,grid_step);
+        #nfa_Pos3=nfaPos_1.copy() #TODO
+        
+        if self.pushImages:
+            self.pushArrayToSlicer(nfaPos_1, 'acontrario_detection___nfaPos_1___python', overWrite=True)
+            self.pushArrayToSlicer(nfaPos_2, 'acontrario_detection___nfaPos_2___python', overWrite=True)
+            self.pushArrayToSlicer(nfaPos_3, 'acontrario_detection___nfaPos_3___python', overWrite=True)
+        if self.saveImages: 
+            self.saveNode('acontrario_detection___nfaPos_1___python','acontrario_detection___nfaPos_1___python.img')
+            self.saveNode('acontrario_detection___nfaPos_2___python','acontrario_detection___nfaPos_2___python.img')
+            self.saveNode('acontrario_detection___nfaPos_3___python','acontrario_detection___nfaPos_3___python.img')
+        
+        
         
         # Draw a spot of the correct scale in each meaningful detection. The
         # correct scale is that of minimun NFA.
         [ spots_pos, nfaValues_pos ] = self.spots_nfa(nfaPos_1, nfaPos_2, nfaPos_3, scales_in);
         
+        if self.pushImages:
+            self.pushArrayToSlicer(spots_pos, 'acontrario_detection___spots_pos___python', overWrite=True)
+            self.pushArrayToSlicer(nfaValues_pos, 'acontrario_detection___nfaValues_pos___python', overWrite=True)
         
-        self.pushArrayToSlicer(spots_pos, 'a_contrario_detection____spots_pos', overWrite=True)
-        self.pushArrayToSlicer(nfaValues_pos, 'a_contrario_detection____nfaValues_pos', overWrite=True)
+        if self.saveImages:
+            self.saveNode('acontrario_detection___spots_pos___python','acontrario_detection___spots_pos___python.img')
+            self.saveNode('acontrario_detection___nfaValues_pos___python','acontrario_detection___nfaValues_pos___python.img')
+        
+        
+        #self.pushArrayToSlicer(spots_pos, 'a_contrario_detection____spots_pos', overWrite=True)
+        #self.pushArrayToSlicer(nfaValues_pos, 'a_contrario_detection____nfaValues_pos', overWrite=True)
         
         
         self.icNormalized = ic
@@ -862,7 +1118,7 @@ class AContrarioDetection:
         
         # Epsilon is set to 1/3 in order to obtain epsilon 1 in the complete test
         # (we are testing 3 scales).
-        epsilon = 1/3;
+        epsilon = 1.0/3.0;
         
         nfa_spotsPos = np.zeros(nfaPos_1.shape);
         nfa_valsPos = np.ones(nfaPos_1.shape);
@@ -874,23 +1130,25 @@ class AContrarioDetection:
                 for k in range(0,q):
                     # Compare the nfa for each scale and choose the minimum.
                     nfaPos = [ nfaPos_1[i,j,k], nfaPos_2[i,j,k] , nfaPos_3[i,j,k] ];
-                    val,ind = min(nfaPos) , argmin(nfaPos) ;
+                    val,ind = min(nfaPos) , np.argmin(nfaPos) ;
                     
                     # If the choosen value is lower than epsilon, then assign the
                     # scale indicator (ind) in nfa_spots and the real nfa value
                     # (val) in nfa_valsPos.
-                    if val <= log(epsilon):
+                    if val <= np.log(epsilon):
                         nfa_spotsPos[i,j,k] = ind;
                         nfa_valsPos[i,j,k] = val;
                     
+        #INVERTI EL ORDEN DE LA DOS FUNCIONES PARA DEBUGGEAR - 
+        # The same spot image is generated with the nfa values assigned to each
+        # spot pixel.
+        nfaPos_values = self.values_display_multiScale(nfa_spotsPos,nfa_valsPos,escalas_in);
         
         # With nfa_spotsPos we can draw a spot of the corresponding scale size in
         # each meaningful detected spot.
         nfaPos_spots = self.spots_display_multiScale(nfa_spotsPos,escalas_in);
-        # The same spot image is generated with the nfa values assigned to each
-        # spot pixel.
-        #nfaPos_values = self.values_display_multiScale(nfa_spotsPos,nfa_valsPos,escalas_in);
-        nfaPos_values = nfaPos_spots.copy()
+        
+        
         
         return nfaPos_spots,nfaPos_values
         
@@ -907,9 +1165,9 @@ class AContrarioDetection:
                     
                     if nfa_umb[i,j,k] > 0:
                         
-                        ra1 = scales(nfa_umb[i,j,k],0);
-                        rb1 = scales(nfa_umb[i,j,k],1);
-                        rc1 = scales(nfa_umb[i,j,k],2);
+                        ra1 = scales[nfa_umb[i,j,k],0];
+                        rb1 = scales[nfa_umb[i,j,k],1];
+                        rc1 = scales[nfa_umb[i,j,k],2];
         
                         kernel = self.elipse3D(ra1,rb1,rc1);
                         
@@ -918,35 +1176,40 @@ class AContrarioDetection:
         nfa_out[nfa_out.nonzero()] = 1;
         return nfa_out
 
-#    def values_display_multiScale(self,nfa_umb,nfa_vals,scales):
-#    #function nfa_out = values_display_multiScale(nfa_umb,nfa_vals,scales)
-#        
-#        nfa_out = np.ones(nfa_umb.shape);
-#        nfa_gz = sort(nfa_vals(nfa_vals<=0),'descend');
-#        
-#        for i=1:length(nfa_gz)
-#            
-#            aux = find(nfa_vals == nfa_gz(i));
-#            total = length(aux);
-#            
-#            for j=1:total
-#        
-#                ra1 = scales(nfa_umb(aux(j)),1);
-#                rb1 = scales(nfa_umb(aux(j)),2);
-#                rc1 = scales(nfa_umb(aux(j)),3);
-#                
-#                [x,y,z] = ind2sub(size(nfa_vals),aux(j));
-#                
-#                actual = nfa_out(x-ra1:x+ra1,y-rb1:y+rb1,z-rc1:z+rc1);
-#                kernel = elipse3D(ra1,rb1,rc1);
-#                
-#                after = actual;
-#                after(kernel>0) = nfa_gz(i);
-#                
-#                nfa_out(x-ra1:x+ra1,y-rb1:y+rb1,z-rc1:z+rc1) = after;
-#            end
-#        end    
-
+    def values_display_multiScale(self,nfa_umb,nfa_vals,scales):
+    #function nfa_out = values_display_multiScale(nfa_umb,nfa_vals,scales)
+        [n,p,q] = nfa_vals.shape
+                
+        nfa_out = np.ones(nfa_umb.shape);
+               
+        nfa_gz = np.sort(nfa_vals[nfa_vals<=0])[::-1]   #nfa_gz = sort(nfa_vals(nfa_vals<=0),'descend');
+        
+        nfa_vals_ravel = nfa_vals.ravel() #flatten the volume
+        
+        for i in range(0,nfa_gz.size):
+            
+            aux = np.flatnonzero(nfa_vals_ravel == nfa_gz[i]);             
+            total = aux.size;
+            
+            for j in range(0,total):
+        
+                #[x,y,z] = ind2sub(size(nfa_vals),aux(j));
+                [x,y,z] =  np.unravel_index(aux[j], nfa_vals.shape)
+                
+                ra1 = scales[nfa_umb[x,y,z],0];
+                rb1 = scales[nfa_umb[x,y,z],1];
+                rc1 = scales[nfa_umb[x,y,z],2];
+                                
+                actual = nfa_out[x-ra1:x+ra1+1,y-rb1:y+rb1+1,z-rc1:z+rc1+1];
+                kernel = self.elipse3D(ra1,rb1,rc1);
+                
+                after = actual;
+                after[kernel>0] = nfa_gz[i];
+                
+                nfa_out[x-ra1:x+ra1+1,y-rb1:y+rb1+1,z-rc1:z+rc1+1] = after;
+                
+        return nfa_out
+        
     def gaussKernel(self, ra2, rb2, rc2):
         #function gaussKernel = gaussianKernel(ra2,rb2,rc2)
         #
@@ -1102,7 +1365,7 @@ class AContrarioDetection:
         #----------OTSU THRESHOLDING------------------------------------
         # move to SimpleITK to compute OTSU ( need to have a 2D array at least in GetImageFromArray, that's why the vstack)
         sitkBasalMasked = sitk.GetImageFromArray(np.vstack((BasalMasked, BasalMasked)))
-        sitkIctalMasked = sitk.GetImageFromArray(np.vstack((BasalMasked, BasalMasked)))
+        sitkIctalMasked = sitk.GetImageFromArray(np.vstack((IctalMasked, IctalMasked)))
         
         # compute otsu for both masked images
         sitkBasalMaskedOtsu = sitk.OtsuThreshold(sitkBasalMasked, 0, 1)
@@ -1187,9 +1450,9 @@ class AContrarioDetection:
         self.displayVolumeInSlice(self.BASAL_VOLUME_NAME, 'Compare2', 'Sagittal')
         self.displayVolumeInSlice(self.BASAL_VOLUME_NAME, 'Compare3', 'Coronal')
         
-        self.displayVolumeInSlice(self.ICTAL_VOLUME_NAME, 'Compare4', 'Axial')
-        self.displayVolumeInSlice(self.ICTAL_VOLUME_NAME, 'Compare5', 'Sagittal')
-        self.displayVolumeInSlice(self.ICTAL_VOLUME_NAME, 'Compare6', 'Coronal')
+        self.displayVolumeInSlice(self.REGISTERED_ICTAL_VOLUME_NAME, 'Compare4', 'Axial')
+        self.displayVolumeInSlice(self.REGISTERED_ICTAL_VOLUME_NAME, 'Compare5', 'Sagittal')
+        self.displayVolumeInSlice(self.REGISTERED_ICTAL_VOLUME_NAME, 'Compare6', 'Coronal')
         
         self.displayVolumeInSlice(self.MASK_VOLUME_NAME, 'Compare7', 'Axial')
         self.displayVolumeInSlice(self.MASK_VOLUME_NAME, 'Compare8', 'Sagittal')

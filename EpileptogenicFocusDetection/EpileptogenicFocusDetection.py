@@ -487,42 +487,42 @@ class EpileptogenicFocusDetectionSlicelet(object):
   def onLoadBasalVolumeButtonClicked(self):
     if slicer.app.ioManager().openAddVolumeDialog():
       self.logic.setActiveVolumeAsBasal();
-#------------------------------------------------------------------------------------------------    
+  #------------------------------------------------------------------------------------------------    
   def onRotateBasalISButtonClicked(self):
     self.logic.rotateBasal('IS');
-#------------------------------------------------------------------------------------------------    
+  #------------------------------------------------------------------------------------------------    
   def onRotateBasalAPButtonClicked(self):
     self.logic.rotateBasal('AP');  
-#------------------------------------------------------------------------------------------------    
+  #------------------------------------------------------------------------------------------------    
   def onRotateBasalLRButtonClicked(self):
     self.logic.rotateBasal('LR');
-#------------------------------------------------------------------------------------------------    
+  #------------------------------------------------------------------------------------------------    
   def onLoadIctalVolumeButtonClicked(self):
     if slicer.app.ioManager().openAddVolumeDialog():
       self.logic.setActiveVolumeAsIctal();
-#------------------------------------------------------------------------------------------------    
+  #------------------------------------------------------------------------------------------------    
   def onRotateIctalISButtonClicked(self):
     self.logic.rotateIctal('IS');
-#------------------------------------------------------------------------------------------------    
+  #------------------------------------------------------------------------------------------------    
   def onRotateIctalAPButtonClicked(self):
     self.logic.rotateIctal('AP');  
-#------------------------------------------------------------------------------------------------    
+  #------------------------------------------------------------------------------------------------    
   def onRotateIctalLRButtonClicked(self):
     self.logic.rotateIctal('LR');
-#------------------------------------------------------------------------------------------------    
+  #------------------------------------------------------------------------------------------------    
   def onLoadMRIVolumeButtonClicked(self):
     if slicer.app.ioManager().openAddVolumeDialog():
       self.logic.setActiveVolumeAsMRI();
-#------------------------------------------------------------------------------------------------    
+  #------------------------------------------------------------------------------------------------    
   def onRotateMRIISButtonClicked(self):
     self.logic.rotateMRI('IS');
-#------------------------------------------------------------------------------------------------    
+  #------------------------------------------------------------------------------------------------    
   def onRotateMRIAPButtonClicked(self):
     self.logic.rotateMRI('AP');  
-#------------------------------------------------------------------------------------------------    
+  #------------------------------------------------------------------------------------------------    
   def onRotateMRILRButtonClicked(self):
     self.logic.rotateMRI('LR');
-#------------------------------------------------------------------------------------------------        
+  #------------------------------------------------------------------------------------------------        
   ### STEP 2 #######
   def onCompareBasalIctalMRIButtonClicked(self):
     self.layoutWidget.setLayout(self.customLayoutGridView3x3)  
@@ -535,23 +535,24 @@ class EpileptogenicFocusDetectionSlicelet(object):
     mriVolumeName = self.logic.MRI_VOLUME_NAME
     self.logic.compareBasalIctalMRI(basalVolumeName,ictalVolumeName,mriVolumeName)  
     
-#------------------------------------------------------------------------------------------------          
+  #------------------------------------------------------------------------------------------------          
   def onRegisterIctalToBasalButtonClicked(self):  
     if self.logic.registerIctalToBasal():    
       print('Registrooooooo!')
       
-#------------------------------------------------------------------------------------------------          
+  #------------------------------------------------------------------------------------------------          
   def onComputeBasalAndIctalMaskButtonClicked(self):
     basalVolumeName = self.logic.BASAL_VOLUME_NAME  
     basalVolumeNode = slicer.util.getNode(basalVolumeName)
     ictalVolumeName = self.logic.REGISTERED_ICTAL_VOLUME_NAME    
     registeredIctalNode = slicer.util.getNode(ictalVolumeName)
     if registeredIctalNode is not None:
-      #self.logic.computeBasalIctalMask(basalVolumeName, ictalVolumeName, basalIctalMaskName)  
+      #self.logic.computeBasalIctalMask(basalVolumeName, ictalVolumeName, basalIctalMaskName) 
       self.logic.generateMask(basalVolumeNode,registeredIctalNode,0.4,1) 
+      self.logic.displayVolume(self.logic.BASAL_ICTAL_MASK_NAME)
     else:
       print "It was not possible to find the registered-ictal node!"  
-#------------------------------------------------------------------------------------------------    
+  #------------------------------------------------------------------------------------------------    
   def onCheckBasalAndIctalMaskButtonClicked(self):
     basalVolumeName = self.logic.BASAL_VOLUME_NAME  
     ictalVolumeName = self.logic.REGISTERED_ICTAL_VOLUME_NAME    
@@ -559,11 +560,11 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.layoutWidget.setLayout(self.customLayoutGridView3x3)  
     self.logic.compareBasalIctalMask(basalVolumeName, ictalVolumeName, basalIctalMaskName )    
    
- #--------------------------------------------------------------------------------------------- 
+   #--------------------------------------------------------------------------------------------- 
   def onRegisterBasalToMRIButtonClicked(self):    
     if self.logic.registerBasalToMRI():
       print('Registrooooooo!')   
- #---------------------------------------------------------------------------------------------     
+   #---------------------------------------------------------------------------------------------     
   def onCreateMaskButtonClicked(self):
     basalVolumeNode = slicer.util.getNode(self.logic.BASAL_VOLUME_NAME)
     ictalVolumeNode = slicer.util.getNode(self.logic.REGISTERED_ICTAL_VOLUME_NAME) 
@@ -574,28 +575,24 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.logic.generateMask(normalizedBasalVolumeNode,normalizedIctalVolumeNode)
     pass
   
-#------------------------------------------------------------------------------------------------------------------      
+  #------------------------------------------------------------------------------------------------------------------      
   def onSubtractionDetectionButtonClicked(self): 
-    basalVolumeNode = slicer.util.getNode(self.logic.BASAL_VOLUME_NAME)
-    ictalVolumeNode = slicer.util.getNode(self.logic.REGISTERED_ICTAL_VOLUME_NAME)
-    subtractionOutputVolumeNode=slicer.vtkMRMLScalarVolumeNode()
-    slicer.mrmlScene.AddNode(subtractionOutputVolumeNode)
-    subtractionOutputVolumeNode.SetName("Ictal-Basal Subtraction") 
-    result= self.logic.subtractImages(ictalVolumeNode,basalVolumeNode, subtractionOutputVolumeNode) 
+#     basalVolumeNode = slicer.util.getNode(self.logic.BASAL_VOLUME_NAME)
+#     ictalVolumeNode = slicer.util.getNode(self.logic.REGISTERED_ICTAL_VOLUME_NAME)
+#     subtractionOutputVolumeNode=slicer.vtkMRMLScalarVolumeNode()
+#     slicer.mrmlScene.AddNode(subtractionOutputVolumeNode)
+#     subtractionOutputVolumeNode.SetName("Ictal-Basal Subtraction") 
+    result =self.logic.subtractImages()  
+    #result= self.logic.subtractImages(ictalVolumeNode,basalVolumeNode, subtractionOutputVolumeNode) 
     if result==True:
-      maskVolumeNode=slicer.util.getNode("basalIctalMaskVolume")
+      maskVolumeNode=slicer.util.getNode(self.logic.BASAL_ICTAL_MASK_NAME)
+      subtractionOutputVolumeNode=slicer.util.getNode(self.logic.ICTAL_BASAL_SUBTRACTION)
       if maskVolumeNode is not None:
         maskVolumeNode.SetLabelMap(True)  
         self.logic.applyMaskToVolume(subtractionOutputVolumeNode,maskVolumeNode,subtractionOutputVolumeNode)  
       data=slicer.util.array(subtractionOutputVolumeNode.GetName())
       minimumValue = numpy.int(data.min())
-      maximumValue = numpy.int(data.max())
-      #self.thresholdSISCOMSlider.minimum = minimumValue
-      #self.thresholdSISCOMSlider.maximum = maximumValue
-      #self.thresholdSISCOMSlider.setEnabled('True')
-      #self.thresholdSISCOM_minimum.setText(str(minimumValue))
-      #self.thresholdSISCOM_maximum.setText(str(maximumValue))
-      
+      maximumValue = numpy.int(data.max())      
       
       stddev=data.std()
       print 'standard deviation = ' + str(stddev)
@@ -610,16 +607,23 @@ class EpileptogenicFocusDetectionSlicelet(object):
       dnode.SetAutoWindowLevel(0)
       dnode.SetWindowLevelMinMax(minimumValue,maximumValue)
       dnode.SetAndObserveColorNodeID(colorMapNode.GetID())
-      backgroundVolumeNode = ictalVolumeNode
+      
+      mriVolumeNode = slicer.util.getNode(self.logic.MRI_VOLUME_NAME)
+      if mriVolumeNode is not None:
+        backgroundVolumeNode = mriVolumeNode
+      else:
+        ictalVolumeNode = slicer.util.getNode(self.logic.REGISTERED_ICTAL_VOLUME_NAME)
+        backgroundVolumeNode = ictalVolumeNode
       foregroundVolumeNode = subtractionOutputVolumeNode
       self.showActivations(backgroundVolumeNode, foregroundVolumeNode)
+        
        
- #---------------------------------------------------------------------------------------------------------------
+   #---------------------------------------------------------------------------------------------------------------
  
   def onThresholdSISCOMSliderClicked(self,minValue,maxValue):  
     print 'positions changed!'  
     print(minValue,maxValue) 
-    node = slicer.util.getNode("Ictal-Basal Subtraction")  
+    node = slicer.util.getNode(self.logic.ICTAL_BASAL_SUBTRACTION)  
     dnode=node.GetDisplayNode()
     dnode.SetAndObserveColorNodeID('vtkMRMLColorTableNodeWarm1')
     dnode.SetLowerThreshold(minValue)
@@ -630,8 +634,8 @@ class EpileptogenicFocusDetectionSlicelet(object):
   
   #---------------------------------------------------------------------------------------
   def onStdDevSISCOMSliderClicked(self, value): 
-    subtractionOutputVolumeNode = slicer.util.getNode("Ictal-Basal Subtraction")    
-    maskVolumeNode= slicer.util.getNode("basalIctalMaskVolume")
+    subtractionOutputVolumeNode = slicer.util.getNode(self.logic.ICTAL_BASAL_SUBTRACTION)    
+    maskVolumeNode= slicer.util.getNode(self.logic.BASAL_ICTAL_MASK_NAME)
     data=slicer.util.array(subtractionOutputVolumeNode.GetName())
     stddevInside_mask = self.logic.computeStdDevInsideMask(subtractionOutputVolumeNode, maskVolumeNode)
     minimumValue = numpy.int(data.min())
@@ -641,7 +645,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.logic.showDifferencesBiggerThanStdThreshold(minimumValue, maximumValue, negativeValuesToHide, positiveValuesToHide)  
     
      
- #---------------------------------------------------------------------------------------------------------------     
+  #---------------------------------------------------------------------------------------------------------------     
   def onAContrarioDetectionButtonClicked(self):   
 #     basalVolumeNode = slicer.util.getNode(self.logic.BASAL_VOLUME_NAME)
 #     ictalVolumeNode = slicer.util.getNode(self.logic.REGISTERED_ICTAL_VOLUME_NAME)  
@@ -653,11 +657,17 @@ class EpileptogenicFocusDetectionSlicelet(object):
 
     import EpileptogenicFocusDetectionLogic.AContrarioLogic as acl
     a = acl.AContrarioDetection()
-    a.runTestCreateMask()    
+    a.runAContrario()    
+    mriVolumeNode = slicer.util.getNode(self.logic.MRI_VOLUME_NAME)
+    if mriVolumeNode is not None:
+      backgroundVolumeNode = mriVolumeNode
+    else:
+      ictalVolumeNode = slicer.util.getNode(self.logic.REGISTERED_ICTAL_VOLUME_NAME)
+      backgroundVolumeNode = ictalVolumeNode
+    foregroundVolumeNode = slicer.util.getNode(a.ACONTRARIO_OUTPUT)
+    self.showActivations(backgroundVolumeNode, foregroundVolumeNode)
       
-      
-      
-#----------------------------------------------------------------------------------------------
+  #----------------------------------------------------------------------------------------------
   def showActivations(self,backgroundVolumeNode,foregroundVolumeNode):
     # Set the background volume 
     redWidgetCompNode = slicer.mrmlScene.GetNodeByID("vtkMRMLSliceCompositeNodeRed")
@@ -683,7 +693,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
     
     self.layoutWidget.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutConventionalView)  
     
-#-----------------------------------------------------------------------------------------------    
+  #-----------------------------------------------------------------------------------------------    
   #
   # Event handler functions
   #
@@ -780,7 +790,7 @@ class EpileptogenicFocusDetectionWidget:
   def onSliceletClosed(self):
     print('Slicelet closed')
 
-# ---------------------------------------------------------------------------
+    # ---------------------------------------------------------------------------
 class EpileptogenicFocusDetectionTest(unittest.TestCase):
   """
   This is the test case for your scripted module.
