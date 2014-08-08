@@ -4,6 +4,7 @@ import sys, string
 #
 # HelloPython
 #
+#hola
 
 class TestPy1:
   def __init__(self, parent):
