@@ -22,17 +22,21 @@ class SubModOneWidget:
     if not parent:
       self.parent = slicer.qMRMLWidget()
       self.parent.setLayout( qt.QVBoxLayout() )
+      self.parent.setMRMLScene(slicer.mrmlScene)
     else:
       self.parent = parent
-
     self.layout = self.parent.layout()
+    if not parent:
+        self.setup()
+        self.parent.show()
       
     #
     # Multivolume Node
     #
     self.mvNode = None
     #venous samples
-    self.venousSamplesFile = False
+    self.VenousSamplepTAC=[]
+    self.VenousSampleTime=[]
     #Segmentation parameters
     self.CarSegmParameters  = None
     self.pTACestParameters = None
@@ -48,12 +52,6 @@ class SubModOneWidget:
   def setup (self) :    
         self.lastLogic=SubModOnelogic()
         #self.parent.connect('mrmlSceneChanged(vtkMRMLScene*)', self.onVCMRMLSceneChanged)
-        w = qt.QWidget()
-        layout = qt.QGridLayout()
-        w.setLayout(layout)
-        self.layout.addWidget(w)
-        w.show()
-        self.layout = layout
         
         #
         # Input Parameters Area
@@ -104,10 +102,11 @@ class SubModOneWidget:
         #
         
         # DICOM study import Option
-        DICOMbrowser = qt.QPushButton("Import DICOM dinamic PET")
+        label = qt.QLabel('Import DICOM Study : ')
+        DICOMbrowser = qt.QPushButton("DICOM Browser")
         DICOMbrowser.toolTip="Opens the DICOM browser to import the study"
         DICOMbrowser.connect('clicked(bool)',self.onDICOMbrowser)
-        parametersFormLayout.addWidget(DICOMbrowser)
+        parametersFormLayout.addRow(label,DICOMbrowser)
         
         # Nifti + Sif import directory
         label = qt.QLabel('Nifti + SIF input directory')
@@ -140,6 +139,12 @@ class SubModOneWidget:
         self.frameSlider = ctk.ctkSliderWidget()
         self.frameSlider.connect('valueChanged(double)', self.onSliderChanged)
         VisualizationFormLayout.addRow(label, self.frameSlider)
+        
+        # Brain Mask display Button
+        DisplayBrainMaskButton = qt.QPushButton("Display Brain Mask")
+        DisplayBrainMaskButton.toolTip="Displays the Brain Mask Calculated"
+        DisplayBrainMaskButton.connect('clicked(bool)',self.onDisplayBrainMask)
+        VisualizationFormLayout.addWidget(DisplayBrainMaskButton)
         
         #
         # Carotid Segmentation items
@@ -186,9 +191,8 @@ class SubModOneWidget:
         self.pTACSelector = qt.QComboBox()
         pTACestimationFormLayout.addRow("Type:", self.pTACSelector)
         #CarSegmentationFormLayout.addWidget(self.CarotidSegmTypeSelector,0,0)
-        self.pTACSelector.addItem('IDIF pTAC estimation with venous samples', 0)
-        self.pTACSelector.addItem('IDIF pTAC estimation without samples', 1)
-        self.pTACSelector.addItem('PBIF Hunter pTAC estimation with venous samples', 2)
+        self.pTACSelector.addItem('IDIF pTAC estimation', 0)
+        self.pTACSelector.addItem('PBIF Hunter pTAC estimation with venous samples', 1)
 
         #Parameters 
         pTACestParameters = ctk.ctkCollapsibleButton()
@@ -288,9 +292,20 @@ class SubModOneWidget:
         self.pTACcsvOutputFileButton.toolTip="Opens a file dialog window to output CSV pTAC file"
         self.pTACcsvOutputFileButton.connect('clicked(bool)',self.onpTACcsvOutputFileButtonClicked)
         pTACestimationFormLayout.addRow(label,self.pTACcsvOutputFileButton)
+        
+        #Apply All
+        self.ApplyKMap_all = qt.QPushButton("Apply selected K-Map estimation")
+        self.ApplyKMap_all.toolTip="Applies the selected K-Map estimation"
+        self.ApplyKMap_all.enabled = True
+        self.layout.addWidget(self.ApplyKMap_all)
+        # connections
+        self.ApplyKMap_all.connect('clicked(bool)', self.onApplyKmap)
+        # Add vertical spacer
+        self.layout.addStretch(1)
 
   def onImportVenousSampleButtonClicked(self):
       self.ImportVenousSampleFile.show()
+      
   def onImportVenousSampleFileChanged(self,filename):
       print filename
       t,pTAC =self.lastLogic.readCSVsamples(filename)
@@ -332,6 +347,16 @@ class SubModOneWidget:
   def onDICOMbrowser(self):
           DICOMWidget().enter()
           
+  def onDisplayBrainMask(self):
+      if self.lastLogic.BrainMask == None :
+          return
+      BrainMaskVolume = self.lastLogic.getBrainMaskVolume()
+      BrainMaskVolume.SetScene(slicer.mrmlScene)
+      slicer.mrmlScene.AddNode(BrainMaskVolume)
+      selectionNode = slicer.app.applicationLogic().GetSelectionNode()
+      selectionNode.SetReferenceActiveVolumeID(BrainMaskVolume.GetID())
+      slicer.app.applicationLogic().PropagateVolumeSelection(0)
+          
   def onCarotidSegmSelector(self):
           self.CarSegmParameters.CSdestroy()
           index = self.CarotidSegmTypeSelector.currentIndex
@@ -366,6 +391,9 @@ class SubModOneWidget:
           CarotidMask .SetScene(slicer.mrmlScene)
           slicer.mrmlScene.AddNode(CarotidMask)
           self.csvSelector.setCurrentNode(CarotidMask)
+          selectionNode = slicer.app.applicationLogic().GetSelectionNode()
+          selectionNode.SetReferenceActiveVolumeID(CarotidMask.GetID())
+          slicer.app.applicationLogic().PropagateVolumeSelection(0)
           
           if self.CarSegmParameters.CSwidgets[-1].isChecked() :
                   mCar = self.lastLogic.mCar
@@ -383,10 +411,14 @@ class SubModOneWidget:
           self.pTACestParameters.pTACdestroy()
           if index < 0:
                   return
+              
           self.pTACestParameters.CreatepTACParameters(index)
-          #Casos IDIF
-          if (self.lastLogic != None) & (index < 2) :
+          #Caso IDIF
+          if (self.lastLogic != None) & (index == 0) :
                   self.pTACestParameters.pTACwidgets[1].setChecked(1)
+                  if (self.VenousSamplepTAC != []) & (self.VenousSampleTime != []) :
+                      self.pTACestParameters.pTACwidgets[3].setChecked(1)
+                      
           self.pTACEstType = index
 
   def onGetpTAC(self) :
@@ -394,15 +426,25 @@ class SubModOneWidget:
           if index < 0:
                   return          
           #caso IDIF
-          if (index < 2) & ((self.lastLogic == None) | (not(self.pTACestParameters.pTACwidgets[1].isChecked()))) :
+          if (index == 0) & ((self.lastLogic == None) | (not(self.pTACestParameters.pTACwidgets[1].isChecked()))) :
                   self.onDisplaySegmentation()
           if (index == 0) :
-                  if not(self.venousSamplesFile) :
+                  #with venous samples
+                  if not(self.pTACestParameters.pTACwidgets[3].isChecked()) :
+                      frameTime, pTAC, hotvox= self.lastLogic.pTACestimationIDIF(None)
+                  #without venous samples
+                  if (self.pTACestParameters.pTACwidgets[3].isChecked()) :
+                      if (self.VenousSamplepTAC == []) | (self.VenousSampleTime == []) :
                           print('A venous sample file was not load')
                           return
-                  pTAC = self.lastLogic.pTACestimationIDIF(self.venousSamplesFile)
+                      pTAC = self.lastLogic.pTACestimationIDIF(self.venousSamplesFile)
+                      print('POR HACER')
+                  
           if (index == 1) :
-                  frameTime,pTAC ,hotvox= self.lastLogic.pTACestimationIDIF(None)
+                  Dosage = self.pTACestParameters.pTACwidgets[1].value
+                  print('dosage' , Dosage)
+                  LeanWeight = self.pTACestParameters.pTACwidgets[3].value
+                  print('LeanWeight' , LeanWeight)
           
           if self.pTACestParameters.pTACwidgets[-1].isChecked() :
                   self.lns = slicer.mrmlScene.GetNodesByClass('vtkMRMLLayoutNode')
@@ -423,15 +465,17 @@ class SubModOneWidget:
       slicer.mrmlScene.AddNode(mvNode)
       self.lastLogic.NiftiParser(self.DirSelector.directory,mvNode)
       #auto set the new node as the input volume and add it into the scene
-
       self.mvSelector.setCurrentNode(mvNode)
+      
   def oncsvInputKMapFileButtonClicked(self):
       self.KMapPtacParametersWidget.KMwidgets[2].show()
+      
   def oncsvInputKMapFileChanged(self,filename):
       print filename
       t,pTAC =self.lastLogic.readCSVsamples(filename)
       self.KMappTACSamplespTAC=pTAC
       self.KMappTACSamplesTime=t
+      
   def onKMapPtacOptionsChanged(self,index):
     print 'option changed', index
     self.KMapPtacParametersWidget.KMpTACDestroy()
@@ -441,12 +485,14 @@ class SubModOneWidget:
     if index == 1: #Make the connections
         self.KMapPtacParametersWidget.KMwidgets[1].connect('clicked(bool)',self.oncsvInputKMapFileButtonClicked) #connect the button 
         self.KMapPtacParametersWidget.KMwidgets[2].fileSelected.connect(self.oncsvInputKMapFileChanged)
+        
   def onKMapMaskOptionsChanged(self,index):
     print 'Mask option changed', index
     self.KMapMaskParametersWidget.KMapdestroy()
     if index < 0:
       return
     self.KMapMaskParametersWidget.CreateKMapParameters(index)  
+    
   def onApplyKmap(self):
       print 'About to apply K-Map'
       #Decide later what to do about special cases of undefined values from previous stages
@@ -475,10 +521,13 @@ class SubModOneWidget:
       KMap.SetScene(slicer.mrmlScene)
       KMap.SetName("HELLO PATLAK OUTPUT")
       slicer.mrmlScene.AddNode(KMap)
+      
   def onpTACcsvOutputFileChanged(self,t):
       self.outputcsvDir=t
+      
   def onpTACcsvOutputFileButtonClicked(self):
       self.pTACcsvOutputFileDialog.show()
+      
 class SubModOnelogic:
 
   def __init__(self, parent=None):
@@ -524,6 +573,7 @@ class SubModOnelogic:
       frameVolume.SetName(frameName)
 
       return frameVolume
+  
   def applyCarotidSegmentation(self,mvNode,roi,connectivityfilter,FrameForSegm) :
           if mvNode == None :
                   print('No multivolume selected')
@@ -551,8 +601,8 @@ class SubModOnelogic:
                       acData = self.accumulate_array(self.DataMatrix,0,peak_index,None)
                   else :
                       acData = self.DataMatrix[FrameForSegm,:]
-                  aCorrelation = self.corrDatapTAC(self.DataMatrix,pTAC_gen)
                   
+                  aCorrelation = self.corrDatapTAC(self.DataMatrix,pTAC_gen)
                   #Correlation threshold is 50% 
                   CorrUm = 0.5
                   sigUm = self.OtsuThreshold(acData[(aCorrelation > CorrUm) ] ,100,None,None)
@@ -720,7 +770,10 @@ class SubModOnelogic:
                           #self.frameTime = self.frameTime - self.frameTime[0]
           print('Frame times ', self.frameTime) 
           
+          #
           #Get Brain Mask
+          #
+          
           frameDelta = numpy.zeros(self.frameTime.size)
           frameDelta[:] = self.frameTime
           frameDelta[1:] = frameDelta[1:] - self.frameTime[0:-1]
@@ -729,12 +782,59 @@ class SubModOnelogic:
           print('Size Data Matrix : ' , self.DataMatrix.size)
           AcumulateBrain_array = self.accumulate_array(self.DataMatrix,self.frameTime.size-10,self.frameTime.size - 1,frameDelta)
           print('AcumulateBrain_array mean ',AcumulateBrain_array.mean())
-          Um = self.OtsuThreshold(AcumulateBrain_array,100,0,AcumulateBrain_array.max())
-          self.BrainMask = numpy.zeros(AcumulateBrain_array.size)
-          self.BrainMask[AcumulateBrain_array >Um] = 1
+          #Filter AcimilateBrain_array        
+          AcumulateBrain_array= AcumulateBrain_array.reshape([self.Dim[2],self.Dim[1],self.Dim[0]])
+                  
+          #Cast Image
+          castFilter = SimpleITK.CastImageFilter()
+          castFilter.SetOutputPixelType(2)
+          AcumulateBrain_castITKim = castFilter.Execute(SimpleITK.GetImageFromArray(AcumulateBrain_array))
           
-          #scalar volume template
-          self.scalarVolumeTemplate = self.extractFrame(mvNode,0)
+          #Double Otsu threshold
+          MOTFilter = SimpleITK.OtsuMultipleThresholdsImageFilter()
+          MOTFilter.SetNumberOfHistogramBins(100)
+          MOTFilter.SetNumberOfThresholds(2)
+          MOTFilter.SetLabelOffset(0)
+          BrainMask_ITKim = MOTFilter.Execute(AcumulateBrain_castITKim)
+          
+          #Set both classes to 1
+          BrainMask_array = SimpleITK.GetArrayFromImage(BrainMask_ITKim)
+          BrainMask_array[BrainMask_array>0] = 1
+          BrainMask_ITKim = SimpleITK.GetImageFromArray(BrainMask_array)
+          
+          #BinaryOpening By Reconstruction (eliminate small elements)
+          BinOpRec = SimpleITK.BinaryOpeningByReconstructionImageFilter()
+          BinOpRec.SetKernelType(BinOpRec.Ball)
+          BinOpRec.SetKernelRadius([3,3,3])
+          BinOpRec.SetForegroundValue(1)
+          BinOpRec.SetBackgroundValue(0)
+                  
+          BrainMask_ITKim = BinOpRec.Execute(BrainMask_ITKim)
+          self.BrainMask = SimpleITK.GetArrayFromImage(BrainMask_ITKim)
+          self.BrainMask = self.BrainMask.reshape(-1)
+          
+          #Scalar Volume Template
+          self.scalarVolumeTemplate = self.extractFrame(mvNode, 0)
+
+  def getBrainMaskVolume(self):
+      
+      #Get Scalar Volume
+      BrainMaskScalarVolume=slicer.vtkMRMLScalarVolumeNode()
+      BrainMaskScalarVolume.Copy(self.scalarVolumeTemplate)
+      
+      BrainMaskImageData = BrainMaskScalarVolume.GetImageData()
+      array = vtk.util.numpy_support.vtk_to_numpy(BrainMaskImageData.GetPointData().GetScalars())
+      #Set Brain Mask Data
+      array[:] = self.BrainMask
+      BrainMaskScalarVolume.GetImageData().Modified()
+      #Set Name
+      Name = 'Brain Mask'
+      BrainMaskScalarVolume.SetName(Name)
+      
+      return BrainMaskScalarVolume
+      
+      
+          
   def OtsuThreshold(self,array,bin,min,max):
       a_min = min
       a_max = max      
@@ -774,6 +874,7 @@ class SubModOnelogic:
       Um = h_v[Um]
       print('Umbral Otsu',Um)
       return Um
+  
   def accumulate_array(self,array,r_min,r_max,w) :
         if r_min == None :
                 r_min = 0
@@ -788,6 +889,7 @@ class SubModOnelogic:
         for i in range(r_min,r_max + 1) :
                 acArray = acArray + (array[i,:]/w[i])
         return acArray
+    
   def corrDatapTAC(self,array_Data,pTAC_gen) :
           Corr = numpy.zeros(array_Data[0,:].size)
           Ip = pTAC_gen.argmax()
@@ -801,6 +903,7 @@ class SubModOnelogic:
                     Corr[i] = -1
           print('Termino de calcular correlacion correlacion va desde ',Corr.min(),'Hasta ',Corr.max())
           return Corr
+      
   def genpTAC(self,Time,Ip):
         pTAC = numpy.zeros(Time.shape)
         Time = Time - Time[0]
@@ -824,6 +927,7 @@ class SubModOnelogic:
                         pTAC[i]  = e* numpy.exp(f*Time[i]) + c * numpy.exp(d*Time[i]) 
                         #print('pTAC3 es:',pTAC[i], 'Time es: ',Time[i])
         return pTAC
+    
   def iniChart(self,title,xlabel,ylabel,lns,cvns,cn):
     # Switch to a layout (24) that contains a Chart View to initiate the construction of the widget and Chart View Node
     lns.InitTraversal()
@@ -837,11 +941,13 @@ class SubModOnelogic:
     cn.SetProperty('default', 'yAxisLabel', ylabel)
     cvn = cvns.GetNextItemAsObject()
     cvn.SetChartNodeID(cn.GetID())
+    
   def addChart(self,x,y,Name,cn,cvns):
     dn = self.setDoubleArrayNode(x, y,Name)    
     cn.AddArray(Name, dn.GetID())
     #cvn = cvns.GetNextItemAsObject()
     #cvn.SetChartNodeID(cn.GetID())
+    
   def setDoubleArrayNode(self,x,y,Name):
     dn = slicer.mrmlScene.AddNode(slicer.vtkMRMLDoubleArrayNode())
     dn.SetName(Name)
@@ -852,6 +958,7 @@ class SubModOnelogic:
         a.SetComponent(i,1,y[i])
         a.SetComponent(i,2,0)
     return dn
+
   def Roi2MapArray(self,template,ROI):
      #obtengo matriz RAStoIJK de template
     RASToIJK=vtk.vtkMatrix4x4()
@@ -892,6 +999,7 @@ class SubModOnelogic:
     array[i_min:i_max,j_min:j_max,k_min:k_max]=1
     slicer.mrmlScene.RemoveNode(template)
     return array
+
   def pTACestimationIDIF(self,samples) :
           #Get hot voxels
           #hotVoxelvalues = self.DataMatrix[:,self.hotvoxelsindex] 
@@ -909,6 +1017,7 @@ class SubModOnelogic:
                               self.pTAC_est[peak - 1] = hotVoxelvalues[peak - 1]
                   print('pTAC Estimated :' , self.pTAC_est)
                   return self.frameTime-self.frameTime[0],self.pTAC_est,hotVoxelvalues
+              
   def estimatepTACgen(self,mTis,mCar,Time,hotvoxel):
           #get peak index
           Ip = hotvoxel[Time<Time[0] + 90].argmax()
@@ -948,6 +1057,7 @@ class SubModOnelogic:
     trapecio=(y+auxy1)/2
     trapecio=trapecio*deltat
     return trapecio.cumsum()
+
   def patlak_voxel(self,integral,pTAC,voxel):#Cometarios, anadir algo con el tiempo para que ignore primeros 20-30 min, num it para afuera? o modificar
         ind=(integral>0)&(voxel>0)&(pTAC>0) #Rev
         X=numpy.array(integral[ind]/pTAC[ind]) #Rev
@@ -989,6 +1099,7 @@ class SubModOnelogic:
         A = numpy.vstack([X_2, numpy.ones(len(X_2))]).T      
         K, Vo = numpy.linalg.lstsq(A, Y_2)[0]
         return K*10**8
+    
   def patlak(self,array,DataMatrix,time,pTAC,Mask): #REVISAR MANEJO DE NEGATIVOS Y PUNTOS SIN INFORMACION (Estan entrando conteos o CPET?)
     self.numInitshort=0
     self.numEndshort=0
@@ -1006,7 +1117,8 @@ class SubModOnelogic:
             array[i]=self.patlak_voxel(integral,pTAC,voxel)
         else:
             array[i]=0
-    return array	  
+    return array
+	  
   def readCSVsamples(self,filename):
       if filename.endswith('.csv'):
         file = open(filename,'r')
@@ -1018,6 +1130,7 @@ class SubModOnelogic:
         return time, sample
       else:
         return
+    
   def writeCSVsamples(self,filename,time,sample):
       Value= [item for i in zip(time,sample) for item in i] #parse the time and sample lists
       ValueStr=[str(item) for item in Value]
@@ -1026,6 +1139,7 @@ class SubModOnelogic:
       file=open(filename,'w')
       file.write(ValueStr)
       file.close()
+      
   def NiftiParser(self,inputDir,mvNode):
       #configure the multivolumeimporter options and load the chosen directory and ouptut image
       s = slicer.modules.multivolumeimporter.widgetRepresentation().self()
@@ -1069,6 +1183,7 @@ class SubModOnelogic:
       #set the attribute
       mvNode.SetAttribute("MultiVolume.FrameLabels",strFrame)
       return mvNode
+  
   def applyKMapEstimation(self,pTACOption,pTAC,tpTAC,MaskOption,Mask):
       #currently, only patlak is implemented
       print 'hello kMap logic apply'
@@ -1102,6 +1217,7 @@ class SubModOnelogic:
           else:
               print pTAC
               return pTAC
+          
   def getMask(self,MaskOption,Mask):
       print 'hello getMASK'
       if MaskOption == 'Auto':
@@ -1133,6 +1249,7 @@ class ParametersWidget(object):
     self.KMpTACDestroy()
     self.Kmapdestroy()
     self.pTACdestroy()    
+    
   def  CreateCSParameters(self,index):
           if not self.parent:
                   raise "no parent"
@@ -1140,6 +1257,11 @@ class ParametersWidget(object):
           parametersFormLayout = self.parent.layout()
           self.inputs = []
           
+          #
+          # Carotid Segmentation Parameters
+          # Index : 0 - Automatic segmentation , 1 - ROI based Segmentation
+          #
+
           #Case ROI based carotid segmentation
           if index == 1 :
                   #Input ROI
@@ -1149,42 +1271,45 @@ class ParametersWidget(object):
                   RoiSelector.setMRMLScene(slicer.mrmlScene)
                   RoiSelector.addEnabled = 0
                   RoiSelector.noneEnabled = 1
+                  parametersFormLayout.addRow(label,RoiSelector) 
+                  #add to CS widgets
                   self.CSwidgets.append(label)
-                  self.CSwidgets.append(RoiSelector)
-                  parametersFormLayout.addRow(label,RoiSelector)                   
+                  self.CSwidgets.append(RoiSelector)                  
           
           #Frame for segmentation 
           UseFrameCheckBox = qt.QCheckBox()
           UseFrameCheckBox.setChecked(0)
           label = qt.QLabel('Choose a Frame for better segmentation : ')
           DoubleFrameBox = qt.QDoubleSpinBox()
-          DoubleFrameBox.value = 0
+          DoubleFrameBox.value = 0               
+          self.parent.collapsed = 0
+          #add to CS widgets
           self.CSwidgets.append(label)
           self.CSwidgets.append(UseFrameCheckBox)
-          self.CSwidgets.append(DoubleFrameBox)        
+          self.CSwidgets.append(DoubleFrameBox)
           parametersFormLayout.addRow(UseFrameCheckBox,label)
-          parametersFormLayout.addWidget(DoubleFrameBox)
-          self.parent.collapsed = 0
-          print (self.CSwidgets)                  
+          parametersFormLayout.addWidget(DoubleFrameBox)   
+               
           
           #Connectivity filter
           connectivityFilterCheckBox = qt.QCheckBox()
           connectivityFilterCheckBox.setChecked(0)
           label = qt.QLabel('Apply connectivity filter to the segmentation')
-          self.CSwidgets.append(label)
-          self.CSwidgets.append(connectivityFilterCheckBox)           
-          parametersFormLayout.addRow(connectivityFilterCheckBox,label)
           self.parent.collapsed = 0
-          print (self.CSwidgets) 
+          #add to CS widgets
+          self.CSwidgets.append(label)
+          self.CSwidgets.append(connectivityFilterCheckBox)
+          parametersFormLayout.addRow(connectivityFilterCheckBox,label)
+          
            #Chart Option
           chartCheckBox = qt.QCheckBox()
           chartCheckBox.setChecked(0)
           label = qt.QLabel('Get chart with tissue and carotid mean activity')
-          self.CSwidgets.append(label)
-          self.CSwidgets.append(chartCheckBox)           
-          parametersFormLayout.addRow(chartCheckBox,label)
           self.parent.collapsed = 0
-          print (self.CSwidgets)
+          #add to CS widgets
+          self.CSwidgets.append(label)
+          self.CSwidgets.append(chartCheckBox)
+          parametersFormLayout.addRow(chartCheckBox,label)     
 
   def CSdestroy(self):
           print ('HOLA destroy')
@@ -1204,16 +1329,47 @@ class ParametersWidget(object):
           parametersFormLayout = self.parent.layout()
           self.inputs = []
           
-          if index < 2 :
-            #segmentation option
+          #
+          # pTAC estimation Options
+          # Index : 0 - IDIF estimation , 1 - PBIF Hunter estimation 
+          #
+          
+          if index == 0 :
+            #Use previous carotid segmentation
             carSegCheckBox = qt.QCheckBox()
             carSegCheckBox.setChecked(0)
             label = qt.QLabel('Use previous carotid segmentation')
             self.pTACwidgets.append(label)
             self.pTACwidgets.append(carSegCheckBox)           
             parametersFormLayout.addRow(carSegCheckBox,label)
+
+            UseVenousSamplesCheckBox = qt.QCheckBox()
+            UseVenousSamplesCheckBox.setChecked(0)
+            label = qt.QLabel('Use venous blood samples')
+            self.pTACwidgets.append(label)
+            self.pTACwidgets.append(UseVenousSamplesCheckBox)           
+            parametersFormLayout.addRow(UseVenousSamplesCheckBox,label)
+        
+          if index == 1 :
+              #Dosage
+              label = qt.QLabel('Dosage inyected in MBq')
+              DosageInyectedValue = qt.QDoubleSpinBox()
+              DosageInyectedValue.value = 0
+              DosageInyectedValue.setMaximum(9999999)
+              self.pTACwidgets.append(label)
+              self.pTACwidgets.append(DosageInyectedValue)
+              parametersFormLayout.addRow(label, DosageInyectedValue)
+              #weigth
+              label = qt.QLabel('Lean weight Kg')
+              LeanWeightValue = qt.QDoubleSpinBox()
+              LeanWeightValue.value = 0
+              LeanWeightValue.setMaximum(9999999)
+              self.pTACwidgets.append(label)
+              self.pTACwidgets.append(LeanWeightValue)
+              parametersFormLayout.addRow(label, LeanWeightValue)
+                  
           
-          #segmentation option
+          #save pTAC estimated ina .csv
           savepTACSegCheckBox = qt.QCheckBox()
           savepTACSegCheckBox.setChecked(0)
           label = qt.QLabel('Save pTAC estimated in a .csv file')
@@ -1221,7 +1377,7 @@ class ParametersWidget(object):
           self.pTACwidgets.append(savepTACSegCheckBox)           
           parametersFormLayout.addRow(savepTACSegCheckBox,label)
            
-          #Chart Option
+          #get Chart
           chartCheckBox = qt.QCheckBox()
           chartCheckBox.setChecked(1)
           label = qt.QLabel('Get chart with the estimated pTAC')
@@ -1241,6 +1397,7 @@ class ParametersWidget(object):
                           w.setParent(None)
           self.pTACwidgets = []
           self.parent.collapsed = 1
+          
   def  CreateKMpTACParameters(self,index):
       if not self.parent:
           raise "no parent"
@@ -1267,6 +1424,7 @@ class ParametersWidget(object):
         parametersFormLayout.addRow(label_button,csvInputKMapFileButton)
         self.parent.collapsed = 0
         print (self.KMwidgets)
+        
   def  KMpTACDestroy(self):
       print ('HOLA destroy KM')
       if self.KMwidgets != [] :
@@ -1277,6 +1435,7 @@ class ParametersWidget(object):
               w.setParent(None)
           self.KMwidgets = []
       self.parent.collapsed = 1
+      
   def  CreateKMapParameters(self,index):
       if not self.parent:
           raise "no parent"
@@ -1308,6 +1467,7 @@ class ParametersWidget(object):
           self.KMapwidgets.append(RoiSelector)
           parametersFormLayout.addRow(label, RoiSelector)
           self.parent.collapsed = 0
+          
   def  KMapdestroy(self):
       print ('HOLA destroy KMap')
       if self.KMapwidgets != [] :
