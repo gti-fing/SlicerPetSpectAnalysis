@@ -57,7 +57,7 @@ class SubModOneWidget:
         # Input Parameters Area
         #
         parametersCollapsibleButton = ctk.ctkCollapsibleButton()
-        parametersCollapsibleButton.text = "Input Parameters"
+        parametersCollapsibleButton.text = "PET dynamic Study and Information"
         parametersCollapsibleButton.collapsed = 0
         self.layout.addWidget(parametersCollapsibleButton)
       
@@ -426,9 +426,9 @@ class SubModOneWidget:
           if index < 0:
                   return          
           #caso IDIF
-          if (index == 0) & ((self.lastLogic == None) | (not(self.pTACestParameters.pTACwidgets[1].isChecked()))) :
-                  self.onDisplaySegmentation()
           if (index == 0) :
+                  if (self.lastLogic == None) | (not(self.pTACestParameters.pTACwidgets[1].isChecked())) :
+                      self.onDisplaySegmentation()
                   #with venous samples
                   if not(self.pTACestParameters.pTACwidgets[3].isChecked()) :
                       frameTime, pTAC, hotvox= self.lastLogic.pTACestimationIDIF(None)
@@ -437,22 +437,28 @@ class SubModOneWidget:
                       if (self.VenousSamplepTAC == []) | (self.VenousSampleTime == []) :
                           print('A venous sample file was not load')
                           return
-                      pTAC = self.lastLogic.pTACestimationIDIF(self.venousSamplesFile)
+                      frameTime, pTAC,hotvox = self.lastLogic.pTACestimationIDIF(self.venousSamplesFile)
                       print('POR HACER')
                   
           if (index == 1) :
+                  if (self.VenousSamplepTAC == []) | (self.VenousSampleTime == []) :
+                      print('A venous sample file was not load')
+                      return
                   Dosage = self.pTACestParameters.pTACwidgets[1].value
                   print('dosage' , Dosage)
                   LeanWeight = self.pTACestParameters.pTACwidgets[3].value
                   print('LeanWeight' , LeanWeight)
-          
+                  frameTime, pTAC = self.lastLogic.PBIFhunter(Dosage, LeanWeight, self.VenousSamplepTAC,self.VenousSampleTime)
+                  
+                           
           if self.pTACestParameters.pTACwidgets[-1].isChecked() :
                   self.lns = slicer.mrmlScene.GetNodesByClass('vtkMRMLLayoutNode')
                   self.cvns = slicer.mrmlScene.GetNodesByClass('vtkMRMLChartViewNode')
                   self.cn = slicer.mrmlScene.AddNode(slicer.vtkMRMLChartNode())
                   self.lastLogic.iniChart('estimated pTAC','time','value',self.lns,self.cvns,self.cn)
                   self.lastLogic.addChart(frameTime,pTAC,'estimated pTAC',self.cn,self.cvns)
-                  self.lastLogic.addChart(frameTime,hotvox,'hot voxels',self.cn,self.cvns)
+                  if index == 0 :
+                      self.lastLogic.addChart(frameTime,hotvox,'hot voxels',self.cn,self.cvns)
           
           if self.pTACestParameters.pTACwidgets[-3].isChecked():
               print('saving pTAC estimated in .csv')
@@ -765,9 +771,15 @@ class SubModOnelogic:
                   #DataArray[:,:,0] = 0
                   self.DataMatrix[i,:] = DataArray.reshape(-1)
                   self.frameTime[i] = float(frTimeStr[i])
+                  #DICOM multivolume doesnt specify scan start time, assume first frame = length than second
                   if frameUnits == 'ms':
                           self.frameTime[i] = self.frameTime[i] / 1000
                           #self.frameTime = self.frameTime - self.frameTime[0]
+          #CASO DICOM Y LA FALTA DE SCAN START TIME EN EL NODO MV
+          if frameUnits == 'ms':
+              deltaF1 = self.frameTime[1] - self.frameTime[0]
+              self.frameTime = self.frameTime + deltaF1 - self.frameTime[0]
+          self.frameTime = numpy.array(self.frameTime)
           print('Frame times ', self.frameTime) 
           
           #
@@ -1016,7 +1028,7 @@ class SubModOnelogic:
                           if peak>0 :
                               self.pTAC_est[peak - 1] = hotVoxelvalues[peak - 1]
                   print('pTAC Estimated :' , self.pTAC_est)
-                  return self.frameTime-self.frameTime[0],self.pTAC_est,hotVoxelvalues
+                  return self.frameTime,self.pTAC_est,hotVoxelvalues
               
   def estimatepTACgen(self,mTis,mCar,Time,hotvoxel):
           #get peak index
@@ -1044,6 +1056,54 @@ class SubModOnelogic:
           Kf3 = K[Ind]
           print ( 'K finale 3 ' , Kf3)
           return((mCar - Kf3 * mTis)/(1-Kf3))
+
+  def PBIFhunter(self,dosage, leanWeight, samples,sampleTimes):
+    
+    if self.frameTime == []:
+        return
+    PeakTime = 0
+    if self.DataMatrix != []:
+      firstFr = self.frameTime[self.frameTime < self.frameTime [0] + 90].argmax()
+      CVar = numpy.var(self.DataMatrix[:,self.BrainMask>0],axis = 1)
+      #peak index
+      peak_index = CVar[0:firstFr+1].argmax()
+      print('peak_index :',peak_index)
+      PeakTime = self.frameTime[peak_index]
+      print('pico pico time: ',PeakTime)
+      
+    #times in seconds
+    #dosage in MBq
+    #leanWeigth in Kg
+    #samples in Bq/g
+   
+    b1=-9.33/60
+    b2=-0.289/60
+    b3=-0.0125/60
+    dosageInBq=dosage*10**6
+    bloodInGrams=leanWeight*70
+    Concentration=dosageInBq/bloodInGrams
+    C=6.4687
+    A2=Concentration/(C+1)
+    A1=A2*C
+   
+    A_matrix=numpy.vstack(numpy.exp(b3*(sampleTimes-PeakTime)))
+    Y=numpy.vstack(samples)
+    A3=numpy.linalg.lstsq(A_matrix, Y)[0]
+    A3 = A3[0]
+    #print('A3',A3)
+    #print('Primer coso:', A1*numpy.exp(b1*(self.frameTime-PeakTime)))
+    pTAC=A1*numpy.exp(b1*(self.frameTime-PeakTime))+A2*numpy.exp(b2*(self.frameTime-PeakTime))+A3*numpy.exp(b3*(self.frameTime-PeakTime))
+    #pTAC = numpy.add(A1*numpy.exp(b1*(self.frameTime-PeakTime)),A2*numpy.exp(b2*(self.frameTime-PeakTime)),A3*numpy.exp(b3*(self.frameTime-PeakTime)))
+    aux=self.frameTime<PeakTime
+    pTAC[aux]=0
+    #print('pTAC',pTAC)
+    self.pTAC_est = numpy.array(pTAC)
+    self.pTAC_est.reshape(-1)
+    #print('pTAC',self.pTAC_est)
+    #print('pTAC size',self.pTAC_est.size)
+    #print('pTAC shape',self.pTAC_est.shape)
+    
+    return self.frameTime,self.pTAC_est
 
 #Patlak Functions
 # FUNCIONES  A PASAR 
@@ -1155,8 +1215,8 @@ class SubModOnelogic:
       #Run multivolume importer
       s.onImportButtonClicked()
       #extract frame endtime information from .SIF File
-      fileNames = [] 
-      
+      fileNames = []
+     
       SIFDir=[]
       for f in os.listdir(inputDir):
         if not f.startswith('.'):
@@ -1171,7 +1231,7 @@ class SubModOnelogic:
           frTimeStr = numpy.array(string.split(line," "))
           frames.append(frTimeStr[1]) #append the end frame value
       frames=numpy.array(frames)
-      frames=frames.astype(int)   
+      frames=frames.astype(int)  
       file.close()
       #generate the string in the format required by the MultiVolume.FrameLabels attribute
       strFrame=""
