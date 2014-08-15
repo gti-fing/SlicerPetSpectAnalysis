@@ -1,5 +1,5 @@
 #-----------------------------------------------------------------------------
-set(MODULE_NAME CarotidSegmentation)
+set(MODULE_NAME dPetBrainQuantification)
 
 #-----------------------------------------------------------------------------
 set(MODULE_PYTHON_SCRIPTS
