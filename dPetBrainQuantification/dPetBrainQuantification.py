@@ -424,42 +424,43 @@ class dPetBrainQuantificationWidget:
   def onGetpTAC(self) :
     index = self.pTACSelector.currentIndex
     if index < 0:
-            return          
+        return          
     #caso IDIF
     if (index == 0) :
-            if (self.lastLogic == None) | (not(self.pTACestParameters.pTACwidgets[1].isChecked())) :
-                self.onDisplaySegmentation()
+        if (self.lastLogic == None) | (not(self.pTACestParameters.pTACwidgets[1].isChecked())) :
+            self.onDisplaySegmentation()
+                  
+        HunterTailfit = self.pTACestParameters.pTACwidgets[5].isChecked()
+        #without venous samples
+        if not(self.pTACestParameters.pTACwidgets[3].isChecked()) :
+            frameTime, pTAC, hotvox= self.lastLogic.pTACestimationIDIF(None,None,HunterTailfit)
             #with venous samples
-            if not(self.pTACestParameters.pTACwidgets[3].isChecked()) :
-                frameTime, pTAC, hotvox= self.lastLogic.pTACestimationIDIF(None)
-            #without venous samples
-            if (self.pTACestParameters.pTACwidgets[3].isChecked()) :
-                if (self.VenousSamplepTAC == []) | (self.VenousSampleTime == []) :
-                    print('A venous sample file was not load')
-                    return
-                frameTime, pTAC,hotvox = self.lastLogic.pTACestimationIDIF(self.venousSamplesFile)
-                print('POR HACER')
-            
-    if (index == 1) :
+        if (self.pTACestParameters.pTACwidgets[3].isChecked()) :
             if (self.VenousSamplepTAC == []) | (self.VenousSampleTime == []) :
                 print('A venous sample file was not load')
                 return
-            Dosage = self.pTACestParameters.pTACwidgets[1].value
-            print('dosage' , Dosage)
-            LeanWeight = self.pTACestParameters.pTACwidgets[3].value
-            print('LeanWeight' , LeanWeight)
-            frameTime, pTAC = self.lastLogic.PBIFhunter(Dosage, LeanWeight, self.VenousSamplepTAC,self.VenousSampleTime)
-            
-                     
+            frameTime, pTAC,hotvox = self.lastLogic.pTACestimationIDIF(self.VenousSampleTime,self.VenousSamplepTAC,HunterTailfit)
+                  
+    if (index == 1) :
+        if (self.VenousSamplepTAC == []) | (self.VenousSampleTime == []) :
+            print('A venous sample file was not load')
+            return
+        Dosage = self.pTACestParameters.pTACwidgets[1].value
+        print('dosage' , Dosage)
+        LeanWeight = self.pTACestParameters.pTACwidgets[3].value
+        print('LeanWeight' , LeanWeight)
+        frameTime, pTAC = self.lastLogic.PBIFhunter(Dosage, LeanWeight, self.VenousSamplepTAC,self.VenousSampleTime)
+                  
+                           
     if self.pTACestParameters.pTACwidgets[-1].isChecked() :
-            self.lns = slicer.mrmlScene.GetNodesByClass('vtkMRMLLayoutNode')
-            self.cvns = slicer.mrmlScene.GetNodesByClass('vtkMRMLChartViewNode')
-            self.cn = slicer.mrmlScene.AddNode(slicer.vtkMRMLChartNode())
-            self.lastLogic.iniChart('estimated pTAC','time','value',self.lns,self.cvns,self.cn)
-            self.lastLogic.addChart(frameTime,pTAC,'estimated pTAC',self.cn,self.cvns)
-            if index == 0 :
-                self.lastLogic.addChart(frameTime,hotvox,'hot voxels',self.cn,self.cvns)
-    
+        self.lns = slicer.mrmlScene.GetNodesByClass('vtkMRMLLayoutNode')
+        self.cvns = slicer.mrmlScene.GetNodesByClass('vtkMRMLChartViewNode')
+        self.cn = slicer.mrmlScene.AddNode(slicer.vtkMRMLChartNode())
+        self.lastLogic.iniChart('estimated pTAC','time','value',self.lns,self.cvns,self.cn)
+        self.lastLogic.addChart(frameTime,pTAC,'estimated pTAC',self.cn,self.cvns)
+        if index == 0 :
+            self.lastLogic.addChart(frameTime,hotvox,'hot voxels',self.cn,self.cvns)
+          
     if self.pTACestParameters.pTACwidgets[-3].isChecked():
         print('saving pTAC estimated in .csv')
         self.lastLogic.writeCSVsamples(self.outputcsvDir, self.lastLogic.frameTime, self.lastLogic.pTAC_est)
@@ -916,27 +917,29 @@ class dPetBrainQuantificationLogic:
     return Corr
       
   def genpTAC(self,Time,Ip):
-    pTAC = numpy.zeros(Time.shape)
-    Time = Time - Time[0]
-    for i  in range(Time.size) :
-      #line to peak
-      if (Time[i]<=Time[Ip]) &  (Time[i] >= (Time[Ip]-20)):
-        pTAC[i] = (Time[i] - Time[Ip] + 20)/2
-        #print('pTAC1 es:',pTAC[i], 'Time es: ',Time[i])
-              
-      #line down from peak
-      if (Time[i]> Time[Ip] ) & (Time[i]<= Time[Ip]  + 60) :
-        pTAC[i] = -((10-1.67)/60)*(Time[i]-Time[Ip] )+10
-        #print('pTAC2 es:',pTAC[i], 'Time es: ',Time[i])        
-      #exponential tail
-      if (Time[i]> (Time[Ip]  + 60)) :
-        c=0.9753
-        d=-0.002
-        e=0.9
-        f=-0.0003
-        pTAC[i]  = e* numpy.exp(f*Time[i]) + c * numpy.exp(d*Time[i]) 
-        #print('pTAC3 es:',pTAC[i], 'Time es: ',Time[i])
-    return pTAC
+      pTAC = numpy.zeros(Time.shape)
+      Time = Time - Time[0]
+      for i  in range(Time.size) :
+          
+          #line to peak
+          if (Time[i]<=Time[Ip]) &  (Time[i] >= (Time[Ip]-20)):
+              pTAC[i] = (Time[i] - Time[Ip] + 20)/2
+              #print('pTAC1 es:',pTAC[i], 'Time es: ',Time[i])
+                        
+          #line down from peak
+          if (Time[i]> Time[Ip] ) & (Time[i]<= Time[Ip]  + 60) :
+              pTAC[i] = -((10-1.67)/60)*(Time[i]-Time[Ip] )+10
+              #print('pTAC2 es:',pTAC[i], 'Time es: ',Time[i])        
+          
+          #exponential tail
+          if (Time[i]> (Time[Ip]  + 60)) :
+              c=1.13
+              d=-0.0035
+              e=1.056
+              f=-0.00034
+              pTAC[i]  = e* numpy.exp(f*(Time[i]-Time[Ip])) + c * numpy.exp(d*(Time[i]-Time[Ip])) 
+                        #print('pTAC3 es:',pTAC[i], 'Time es: ',Time[i])
+      return pTAC
     
   def iniChart(self,title,xlabel,ylabel,lns,cvns,cn):
     # Switch to a layout (24) that contains a Chart View to initiate the construction of the widget and Chart View Node
@@ -1010,51 +1013,128 @@ class dPetBrainQuantificationLogic:
     slicer.mrmlScene.RemoveNode(template)
     return array
 
-  def pTACestimationIDIF(self,samples) :
+  def pTACestimationIDIF(self,sampleTime,samples,HunterTailfit) :
     #Get hot voxels
     #hotVoxelvalues = self.DataMatrix[:,self.hotvoxelsindex] 
     CarotidData = self.DataMatrix[:,self.Carotids_array_Mask == 1]
     print('Max hot voxel: ',CarotidData[:,self.hotvoxelsindex[-1]])
     hotVoxelvalues = numpy.mean(CarotidData[:,self.hotvoxelsindex] ,axis=1)
     print('hot voxels values :',hotVoxelvalues)
-    if samples == None:
-      self.pTAC_est = self.estimatepTACgen(self.mTis,self.mCar,self.frameTime,hotVoxelvalues)
-      peak = self.pTAC_est.argmax()
-      if self.pTAC_est[peak]<hotVoxelvalues[peak] :
-        self.pTAC_est[peak] = hotVoxelvalues[peak]
-        self.pTAC_est[peak + 1] = hotVoxelvalues[peak + 1]
-        if peak>0 :
-            self.pTAC_est[peak - 1] = hotVoxelvalues[peak - 1]
-      print('pTAC Estimated :' , self.pTAC_est)
-      return self.frameTime,self.pTAC_est,hotVoxelvalues
+         
+    nsamples = 0
+    if (samples != None) & (sampleTime != None):
+        nsamples = min(samples.size,sampleTime.size)
+        #ONE OR NO SAMPLES    
+    if (samples == None) | (sampleTime == None) | (nsamples < 2):
+        b_expTail = None
+        if HunterTailfit :
+            print('FIT CON EXP HUNTER TAIL')
+            b_expTail = -float(0.0125/60)
+        #Estimation
+        self.pTAC_est = self.estimatepTACgen(self.mTis,self.mCar,self.frameTime,hotVoxelvalues,b_expTail)
+        print('pTAC Estimated :' , self.pTAC_est)
+            #CASO UNA MUESTRA (SOLO PUEDO EVALUAR GANANCIA)
+        if (nsamples == 1) :
+            #ajusto ganancia
+            Ip = hotVoxelvalues[self.frameTime<self.frameTime[0] + 90].argmax()
+            TailIndex = self.frameTime>self.frameTime[Ip]+1200
+            TailTimes = self.frameTime[TailIndex == 1]
+            TailpTAC = self.pTAC_est[TailIndex == 1]
+            a,b = self.fitOneExp(TailTimes,TailpTAC)
+            print('b of IDIF hotVoxels :', b)
+            G = float(samples[0]) / float(a*numpy.exp(b*sampleTime[0]))
+            print('valor de la exponencial :', a*numpy.exp(b*sampleTime[0]))
+            print('valor de la muestra : ' , samples[0])
+            self.pTAC_est = self.pTAC_est * G
+            print('G :',G)
+        return self.frameTime,self.pTAC_est,hotVoxelvalues
+        
+          #TWO OR MORE SAMPLES
+    if (nsamples > 1) :
+        a,b = self.fitOneExp(sampleTime, samples)
+        vTAC_tail = a*numpy.exp(b*self.frameTime)
+        print('VTAC_TAIL' ,vTAC_tail)
+        print('Samples',samples)
+        print('Samples :',samples, ' time :' , sampleTime)
+        self.pTAC_est = self.estimatepTACvSamples(self.mTis,self.mCar,self.frameTime,vTAC_tail,b,hotVoxelvalues)  
+        return self.frameTime,self.pTAC_est,vTAC_tail
               
-  def estimatepTACgen(self,mTis,mCar,Time,hotvoxel):
+  def estimatepTACgen(self,mTis,mCar,Time,hotVoxelvalues,b):
     #get peak index
-    Ip = hotvoxel[Time<Time[0] + 90].argmax()
-    #get generic pTAC and adjust peak to hot voxel values
-    pTACgen = self.genpTAC(Time,Ip) 
-    pTACgen = (hotvoxel[Ip]*pTACgen)/pTACgen[Ip]
-    print('pTAC gen 2 : ',pTACgen)
+    Ip = hotVoxelvalues[Time<Time[0] + 90].argmax()
+    TailIndex = Time>Time[Ip]+1200
     #possible spill in values
     K = numpy.linspace(0,1,100)
-    Corr = numpy.zeros(K.shape)
-    Corr3 = numpy.zeros(K.shape)
+    DS = numpy.ones(K.shape)
+    if b == None :
+        a,b = self.fitOneExp(Time[TailIndex == 1] - Time[Ip],hotVoxelvalues[TailIndex == 1])
+    print('b :',b)
+    print('b del fit ref :', b)
     for i in range(K.size):
-      ki = K[i]
-      pTAC_est = (mCar - ki*mTis)
-      if (pTAC_est[Ip:].min() > 0) :
-        Corr_c = numpy.corrcoef(pTAC_est,pTACgen)
-        Corr[i] = Corr_c[0,1]
-        Corr_c = numpy.corrcoef(pTAC_est,hotvoxel)
-        Corr3[i] = Corr_c[0,1]
-    Ind = Corr.argmax()
-    Kf = K[Ind]
-    print ( 'K finale ' , Kf)
-    Ind = Corr3.argmax()
-    Kf3 = K[Ind]
-    print ( 'K finale 3 ' , Kf3)
-    return((mCar - Kf3 * mTis)/(1-Kf3))
-
+        ki = K[i]
+        pTAC_est = (mCar - ki*mTis)
+        if (pTAC_est[Ip:].min() > 0) :
+            A,L = self.fitOneExp(Time[TailIndex == 1]- Time[Ip],pTAC_est[TailIndex == 1])
+            print('L :', L)
+            DS[i] = abs(float(L) - float(b))        
+    Ind = DS.argmin()
+    Kf2 = K[Ind]
+    print 'Kind2',Kf2   
+    print('DS :' , DS) 
+    pTAC_est = (mCar - Kf2 * mTis)/(1-Kf2)
+    #Adjust peak with hotvoxels.
+    pTAC_est = self.pTACpeakCorrection(pTAC_est, hotVoxelvalues)
+    return pTAC_est
+      
+  def estimatepTACvSamples(self,mTis,mCar,Time,vTAC_tail,b,hotVoxelvalues) :
+    #get peak index
+    Ip = mCar[Time<Time[0] + 90].argmax()
+    TailIndex = Time>Time[Ip]+1200
+    K = numpy.linspace(0,1,100)
+    DS = numpy.ones(K.shape)
+    for i in range(K.size):
+        ki = K[i]
+        pTAC_est = (mCar - ki*mTis)
+        if (pTAC_est[Ip:].min() > 0) :
+            A,L = self.fitOneExp(Time[Time>Time[Ip]+1200],pTAC_est[TailIndex])
+            DS[i] = abs(L - b)
+    print('Difference shape :',DS)
+    Ind = DS.argmin()
+    Kf2 = K[Ind]
+    print 'Kind2',Kf2
+    print('vTAC : ',vTAC_tail[TailIndex])
+    pTAC_est = ((mCar - Kf2 * mTis)/(1-Kf2))
+    print('Maximo pTAC :', pTAC_est[Ip], 'Maximo de toda la parte carotidas en el pico : ',self.DataMatrix[Ip,self.Carotids_array_Mask == 1].max())
+    #Adjust peak with hotvoxels.
+    pTAC_est = self.pTACpeakCorrection(pTAC_est, hotVoxelvalues) 
+    # mx + c = y     
+    D = numpy.vstack([pTAC_est[TailIndex]]).T
+    print('D : ',D)
+    Gain = numpy.linalg.lstsq(D, vTAC_tail[TailIndex])[0]
+    print('Gain_ cross calibration scan-counter: ',Gain)
+    return Gain*pTAC_est
+  
+  def pTACpeakCorrection(self,pTAC_est,hotVoxelvalues):
+    #Adjust peak with hotvoxels.
+    Ip = hotVoxelvalues.argmax()
+    if (pTAC_est[Ip]<hotVoxelvalues[Ip]) | (pTAC_est[Ip] > 1.5*hotVoxelvalues[Ip]) :
+        pTAC_est[Ip] = hotVoxelvalues[Ip]
+        pTAC_est[Ip + 1] = hotVoxelvalues[Ip + 1]
+        if Ip>0 :
+            pTAC_est[Ip - 1] = hotVoxelvalues[Ip - 1]
+    return pTAC_est
+      
+  def fitOneExp(self,time,value):
+    # v = a*exp(b*t) --> ln(v) = ln(a) + b*t
+    y = numpy.log(numpy.float32(value))
+    x = numpy.float32(time)
+    D = numpy.vstack([x, numpy.ones(len(x))]).T
+    # mx + c = y 
+    m,c = numpy.linalg.lstsq(D, y)[0]
+    a = numpy.exp(c)
+    b = m
+    return a,b
+  
   def PBIFhunter(self,dosage, leanWeight, samples,sampleTimes):
     
     if self.frameTime == []:
@@ -1407,6 +1487,13 @@ class ParametersWidget(object):
       self.pTACwidgets.append(label)
       self.pTACwidgets.append(UseVenousSamplesCheckBox)           
       parametersFormLayout.addRow(UseVenousSamplesCheckBox,label)
+      
+      UseHunterTailfitCheckBox = qt.QCheckBox()
+      UseHunterTailfitCheckBox.setChecked(0)
+      label = qt.QLabel('Fit with Hunters tail (FDG) when one or no sample is provided')
+      self.pTACwidgets.append(label)
+      self.pTACwidgets.append(UseHunterTailfitCheckBox)           
+      parametersFormLayout.addRow(UseHunterTailfitCheckBox,label)
   
     if index == 1 :
       #Dosage
