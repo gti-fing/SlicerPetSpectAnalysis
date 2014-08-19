@@ -218,6 +218,7 @@ class AContrarioDetection:
         
         ic=self.ic
         inter=self.inter
+        print 'A ver si estamos en la ultima version ????'
         self.acontrario_detection(ic, inter, debug=True)
         
 #        sitkIcNormalized = sitk.GetImageFromArray(self.icNormalized)
@@ -399,7 +400,7 @@ class AContrarioDetection:
         
         # Local test
         print 'Performing local test...'
-        [ pfaL_Pos, T_eff, Ntest ] = self.acontrario_local(ldif,mask,ra1,rb1,rc1,ra2,rb2,rc2,grid_step);
+        [ pfaL_Pos, T_eff, Ntest , pfaL_Neg] = self.acontrario_local(ldif,mask,ra1,rb1,rc1,ra2,rb2,rc2,grid_step);
         
         if self.pushImages:
             self.pushArrayToSlicer(T_eff, 'acontrario_det_scale___T_eff___python', overWrite=True)
@@ -415,7 +416,7 @@ class AContrarioDetection:
                        
         # Global test
         print 'Performing global test...'
-        pfaG_Pos = self.acontrario_global(dif,mask,T_eff,ra1,rb1,rc1);
+        [pfaG_Pos, pfaG_Neg] = self.acontrario_global(dif,mask,T_eff,ra1,rb1,rc1);
         if self.pushImages:
             self.pushArrayToSlicer(pfaG_Pos, 'acontrario_global___pfaG_Pos___python', overWrite=True)
         if self.saveImages:
@@ -425,6 +426,7 @@ class AContrarioDetection:
         
         # Combined measurement
         pfaPos = pfaG_Pos + pfaL_Pos;
+        pfaNeg = pfaG_Neg + pfaL_Neg
         
         # Compute relative number of false alarms (explained in article:
         # "A-contrario detectability of spots in textured backgrounds",
@@ -433,8 +435,9 @@ class AContrarioDetection:
         
         # Compute NFA from PFA and Ntest_exp.
         nfaPos = pfaPos + np.log(Ntest_exp);
+        nfaNeg = pfaNeg + np.log(Ntest_exp);
         
-        return nfaPos
+        return nfaPos, nfaNeg
       
             
     def acontrario_local(self,dif,mask,ra1,rb1,rc1,ra2,rb2,rc2,grid_step):
@@ -592,6 +595,7 @@ class AContrarioDetection:
         #==========================================================================
         Ntest = 0;
         pfaPos = np.ones(dif.shape)*100;
+        pfaNeg = np.ones(dif.shape)*100;
         [n,p,q] = dif.shape;
         
         # Measurement kernel.
@@ -675,8 +679,12 @@ class AContrarioDetection:
                     
                     measure1 = patch[ kernel_padded > 0 ].mean();
                     
-                    pfaPos[i,j,k] = np.log(0.5*np.math.erfc((measure1-mediaPatch)/norm_phi/np.sqrt(2)));                   
+                    erfc_for_positive_dif = np.math.erfc((measure1-mediaPatch)/norm_phi/np.sqrt(2))
+                    erfc_for_negative_dif = 2-erfc_for_positive_dif;
                     
+                    pfaPos[i,j,k] = np.log(0.5*erfc_for_positive_dif);
+                    pfaNeg[i,j,k] = np.log(0.5*erfc_for_negative_dif); 
+                                      
                     Ntest = Ntest + 1;
                     
                 else : # If the exterior neighborhood is not completely included in the mask.
@@ -715,7 +723,11 @@ class AContrarioDetection:
                                                         
                         measure1 = patch[ kernel_padded > 0 ].mean();
                         
-                        pfaPos[i,j,k] = np.log(0.5*np.math.erfc((measure1-mediaPatch)/norm_phi/np.sqrt(2)));                       
+                        erfc_for_positive_dif = np.math.erfc((measure1-mediaPatch)/norm_phi/np.sqrt(2))
+                        erfc_for_negative_dif = 2-erfc_for_positive_dif;
+                    
+                        pfaPos[i,j,k] = np.log(0.5*erfc_for_positive_dif);
+                        pfaNeg[i,j,k] = np.log(0.5*erfc_for_negative_dif); 
                         
                         Ntest = Ntest + 1;
                       
@@ -725,7 +737,7 @@ class AContrarioDetection:
             else :
                 T_eff[i,j,k] = 0;
                   
-        return  pfaPos, T_eff, Ntest 
+        return  pfaPos, T_eff, Ntest , pfaNeg
                         
         
         
@@ -939,6 +951,7 @@ class AContrarioDetection:
         
         # Initialize pfa variable
         pfaPos = np.ones(dif.shape);
+        pfaNeg = np.ones(dif.shape);
         
         # For each pixel in the image, if it is in the test grid (T_eff), compute
         # the pfa.
@@ -953,14 +966,25 @@ class AContrarioDetection:
                         # tested.                               
                           
                         if np.sum(bin_edges >= difM[j,k,l]) > 0 :
-                            pfaPos[j,k,l] = np.log(np.sum(np.exp(log_density[bin_edges >= difM[j,k,l]] - max(log_density[bin_edges >= difM[j,k,l]]) ))) + max(log_density[bin_edges >= difM[j,k,l]]);                                 
+                            #pfaPos[j,k,l] = np.log(np.sum(np.exp(log_density[bin_edges >= difM[j,k,l]] - max(log_density[bin_edges >= difM[j,k,l]]) ))) + max(log_density[bin_edges >= difM[j,k,l]]);
+                            pfaPos[j,k,l] = np.log( np.sum( pasoBin *  hist[bin_edges >= difM[j,k,l]] ) );
+                            #matlab pfaPosAG(j,k,l) = log( sum(pasoBin * aux(bins >= difM(j,k,l))) );                                 
                         else :
                             #Se asigna el ultimo valor de la log_density 
                             pfaPos[j,k,l] = log_density[-1];
                             print 'np.sum(bin_edges >= difM[j,k,l]) <= 0', j,k,l, difM[j,k,l], 'pfaPos=',pfaPos[j,k,l]
+                        
+                        if np.sum(bin_edges <= difM[j,k,l]) > 0 :
+                            #pfaPos[j,k,l] = np.log(np.sum(np.exp(log_density[bin_edges >= difM[j,k,l]] - max(log_density[bin_edges >= difM[j,k,l]]) ))) + max(log_density[bin_edges >= difM[j,k,l]]);
+                            pfaNeg[j,k,l] = np.log( np.sum( pasoBin *  hist[bin_edges <= difM[j,k,l]] ) );
+                            #matlab pfaPosAG(j,k,l) = log( sum(pasoBin * aux(bins >= difM(j,k,l))) );                                 
+                        else :
+                            #Se asigna el primer valor de la log_density 
+                            pfaNeg[j,k,l] = log_density[0];
+                            print 'np.sum(bin_edges >= difM[j,k,l]) <= 0', j,k,l, difM[j,k,l], 'pfaPos=',pfaPos[j,k,l]
                             
                             
-        return pfaPos
+        return pfaPos, pfaNeg
           
                         
     def acontrario_detection(self, icOriginal, interOriginal, debug=False):
@@ -1065,40 +1089,50 @@ class AContrarioDetection:
         #
         #disp(['Processing scale = 1 of ' num2str(total_esc)]);
         print 'Processing scale = 1 of ',  total_esc
-        nfaPos_1 = self.acontrario_det_scale(0,scales_in,scales_out,ldif,dif,mask,grid_step);
+        [nfaPos_1,nfaNeg_1] = self.acontrario_det_scale(0,scales_in,scales_out,ldif,dif,mask,grid_step);
         
         #disp(['Processing scale = 2 of ' num2str(total_esc)]);
         print 'Processing scale = 2 of ',  total_esc, ' COMENTADO'
-        nfaPos_2 = self.acontrario_det_scale(1,scales_in,scales_out,ldif,dif,mask,grid_step);
+        [nfaPos_2,nfaNeg_2] = self.acontrario_det_scale(1,scales_in,scales_out,ldif,dif,mask,grid_step);
         #nfa_Pos2=nfaPos_1.copy() #TODO
         
         #disp(['Processing scale = 3 of ' num2str(total_esc)]);
         print 'Processing scale = 3 of ',  total_esc, ' COMENTADO'
-        nfaPos_3 = self.acontrario_det_scale(2,scales_in,scales_out,ldif,dif,mask,grid_step);
+        [nfaPos_3, nfaNeg_3] = self.acontrario_det_scale(2,scales_in,scales_out,ldif,dif,mask,grid_step);
         #nfa_Pos3=nfaPos_1.copy() #TODO
         
         if self.pushImages:
             self.pushArrayToSlicer(nfaPos_1, 'acontrario_detection___nfaPos_1___python', overWrite=True)
             self.pushArrayToSlicer(nfaPos_2, 'acontrario_detection___nfaPos_2___python', overWrite=True)
             self.pushArrayToSlicer(nfaPos_3, 'acontrario_detection___nfaPos_3___python', overWrite=True)
+            self.pushArrayToSlicer(nfaNeg_1, 'acontrario_detection___nfaNeg_1___python', overWrite=True)
+            self.pushArrayToSlicer(nfaNeg_2, 'acontrario_detection___nfaNeg_2___python', overWrite=True)
+            self.pushArrayToSlicer(nfaNeg_3, 'acontrario_detection___nfaNeg_3___python', overWrite=True)
+            
         if self.saveImages: 
-            self.saveNode('acontrario_detection___nfaPos_1___python','acontrario_detection___nfaPos_1___python.img')
-            self.saveNode('acontrario_detection___nfaPos_2___python','acontrario_detection___nfaPos_2___python.img')
-            self.saveNode('acontrario_detection___nfaPos_3___python','acontrario_detection___nfaPos_3___python.img')
+            self.saveNode('acontrario_detection___nfaNeg_1___python','acontrario_detection___nfaNeg_1___python.img')
+            self.saveNode('acontrario_detection___nfaNeg_2___python','acontrario_detection___nfaNeg_2___python.img')
+            self.saveNode('acontrario_detection___nfaNeg_3___python','acontrario_detection___nfaNeg_3___python.img')
         
         
         
         # Draw a spot of the correct scale in each meaningful detection. The
         # correct scale is that of minimun NFA.
         [ spots_pos, nfaValues_pos ] = self.spots_nfa(nfaPos_1, nfaPos_2, nfaPos_3, scales_in);
+        [ spots_neg, nfaValues_neg ] = self.spots_nfa(nfaNeg_1, nfaNeg_2, nfaNeg_3, scales_in);
         
         if self.pushImages:
             self.pushArrayToSlicer(spots_pos, 'acontrario_detection___spots_pos___python', overWrite=True)
             self.pushArrayToSlicer(nfaValues_pos, 'acontrario_detection___nfaValues_pos___python', overWrite=True)
+            self.pushArrayToSlicer(spots_pos, 'acontrario_detection___spots_neg___python', overWrite=True)
+            self.pushArrayToSlicer(nfaValues_pos, 'acontrario_detection___nfaValues_neg___python', overWrite=True)
+            
         
         if self.saveImages:
             self.saveNode('acontrario_detection___spots_pos___python','acontrario_detection___spots_pos___python.img')
             self.saveNode('acontrario_detection___nfaValues_pos___python','acontrario_detection___nfaValues_pos___python.img')
+            self.saveNode('acontrario_detection___spots_neg___python','acontrario_detection___spots_neg___python.img')
+            self.saveNode('acontrario_detection___nfaValues_neg___python','acontrario_detection___nfaValues_neg___python.img')
         
         
         #self.pushArrayToSlicer(spots_pos, 'a_contrario_detection____spots_pos', overWrite=True)
@@ -1109,7 +1143,7 @@ class AContrarioDetection:
         self.interNormalized = inter
         self.Substraction = ic-inter
         
-        return spots_pos, nfaValues_pos
+        return spots_pos, nfaValues_pos, spots_neg, nfaValues_neg
         
         pass  # End of the principal function.
         
