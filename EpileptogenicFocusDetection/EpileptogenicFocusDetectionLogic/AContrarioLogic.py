@@ -10,7 +10,9 @@ import sitkUtils
 class AContrarioDetection:
     def __init__(self):
         
-        self.savedir = '/home/agomez/Software/epiliepsia/UltimaVersionAContrarioParaSlicer/AContrarioParaSlicer/salida/'
+        self.savedir = '/home/agomez/Software/slicer/Extensions/gitlab/slicerepilepsytoolkit/EpileptogenicFocusDetection/EpileptogenicFocusDetectionLogic/output/'
+        #'/home/agomez/Software/epiliepsia/UltimaVersionAContrarioParaSlicer/AContrarioParaSlicer/salida/'
+        
          
         self.pushImages = False  
         self.saveImages = False  #OJO requiere el push previo (habilitar solo en conjunto con el push)
@@ -107,7 +109,29 @@ class AContrarioDetection:
         
         
         pass
-    
+
+    def runTestNegSpotsNfa(self):
+        
+        scales_in = np.array([[1, 2, 1], [2, 3, 1], [3, 4, 1]],np.uint32);
+        
+        nfaNeg_1 = self.getArrayFromSlicer('acontrario_detection___nfaNeg_1___python')
+        nfaNeg_2 = self.getArrayFromSlicer('acontrario_detection___nfaNeg_2___python')
+        nfaNeg_3 = self.getArrayFromSlicer('acontrario_detection___nfaNeg_3___python')
+
+
+        # Draw a spot of the correct scale in each meaningful detection. The
+        # correct scale is that of minimun NFA.
+        [ spots_neg, nfaValues_neg ] = self.spots_nfa(nfaNeg_1, nfaNeg_2, nfaNeg_3, scales_in);
+        
+        if self.pushImages:
+            self.pushArrayToSlicer(spots_neg, 'acontrario_detection___spots_neg___python', overWrite=True)
+            self.pushArrayToSlicer(nfaValues_neg, 'acontrario_detection___nfaValues_neg___python', overWrite=True)
+            
+        if self.saveImages:
+            self.saveNode('acontrario_detection___spots_neg___python','acontrario_detection___spots_neg___python.img')
+            self.saveNode('acontrario_detection___nfaValues_neg___python','acontrario_detection___nfaValues_neg___python.img')
+        
+            
     def runTestSpotsNfa(self):
         
         scales_in = np.array([[1, 2, 1], [2, 3, 1], [3, 4, 1]],np.uint32);
@@ -1124,8 +1148,8 @@ class AContrarioDetection:
         if self.pushImages:
             self.pushArrayToSlicer(spots_pos, 'acontrario_detection___spots_pos___python', overWrite=True)
             self.pushArrayToSlicer(nfaValues_pos, 'acontrario_detection___nfaValues_pos___python', overWrite=True)
-            self.pushArrayToSlicer(spots_pos, 'acontrario_detection___spots_neg___python', overWrite=True)
-            self.pushArrayToSlicer(nfaValues_pos, 'acontrario_detection___nfaValues_neg___python', overWrite=True)
+            self.pushArrayToSlicer(spots_neg, 'acontrario_detection___spots_neg___python', overWrite=True)
+            self.pushArrayToSlicer(nfaValues_neg, 'acontrario_detection___nfaValues_neg___python', overWrite=True)
             
         
         if self.saveImages:
