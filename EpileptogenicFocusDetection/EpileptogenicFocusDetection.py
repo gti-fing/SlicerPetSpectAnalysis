@@ -131,7 +131,6 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.aContrarioDetectionButton.disconnect('clicked()', self.onAContrarioDetectionButtonClicked)
     self.createMaskButton.disconnect('clicked()', self.onCreateMaskButtonClicked)
     self.SISCOMDetectionButton.disconnect('clicked()', self.onSubtractionDetectionButtonClicked)
-    self.thresholdSISCOMSlider.disconnect('positionsChanged(double,double)', self.onThresholdSISCOMSliderClicked)
 
 
   def setup_Step0_LayoutSelection(self):
@@ -394,20 +393,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.SISCOMDetectionButton.name = "SISCOMDetectionButton"
     self.step3A_SISCOMDetectionCollapsibleButtonLayout.addRow('Foci detection: ', self.SISCOMDetectionButton)
     
-    # SISCOM Threshold frame
-    self.thresholdSISCOMFrame=qt.QFrame()
-    self.thresholdSISCOMFrame.setLayout(qt.QHBoxLayout())
-    self.thresholdSISCOMLayout=self.thresholdSISCOMFrame.layout()
-    
-    self.thresholdSISCOMSlider =ctk.ctkDoubleRangeSlider()
-    self.thresholdSISCOMSlider.orientation = 1  # Horizontal
-    self.thresholdSISCOMSlider.setEnabled('False')
-    self.thresholdSISCOM_minimum=qt.QLabel()
-    self.thresholdSISCOM_maximum=qt.QLabel()
-    self.thresholdSISCOMLayout.addWidget(self.thresholdSISCOM_minimum)
-    self.thresholdSISCOMLayout.addWidget(self.thresholdSISCOMSlider)
-    self.thresholdSISCOMLayout.addWidget(self.thresholdSISCOM_maximum)
-    
+    # SISCOM Threshold frame    
     self.stdDevSISCOMSlider=ctk.ctkSliderWidget()
     self.stdDevSISCOMSlider.setEnabled('False')
     
@@ -473,7 +459,6 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.aContrarioDetectionButton.connect('clicked()', self.onAContrarioDetectionButtonClicked)
     self.createMaskButton.connect('clicked()', self.onCreateMaskButtonClicked)
     self.SISCOMDetectionButton.connect('clicked()', self.onSubtractionDetectionButtonClicked)
-    self.thresholdSISCOMSlider.connect('positionsChanged(double,double)', self.onThresholdSISCOMSliderClicked)
     self.stdDevSISCOMSlider.connect('valueChanged(double)', self.onStdDevSISCOMSliderClicked)
 
     # Open OBI fiducial selection panel when step is first opened
@@ -547,17 +532,13 @@ class EpileptogenicFocusDetectionSlicelet(object):
     ictalVolumeName = self.logic.REGISTERED_ICTAL_VOLUME_NAME    
     registeredIctalNode = slicer.util.getNode(ictalVolumeName)
     if registeredIctalNode is not None:
-      progressBar=qt.QProgressBar()
-      progressBar.setMaximum(0)
-      progressBar.setMinimum(0)
-      progressBar.show()    
-      #self.logic.computeBasalIctalMask(basalVolumeName, ictalVolumeName, basalIctalMaskName) 
       self.logic.generateMask(basalVolumeNode,registeredIctalNode,0.4,1) 
       self.logic.displayVolume(self.logic.BASAL_ICTAL_MASK_NAME)
-      progressBar.hide()
     else:
       print "It was not possible to find the registered-ictal node!"  
   #------------------------------------------------------------------------------------------------    
+  
+  
   def onCheckBasalAndIctalMaskButtonClicked(self):
     basalVolumeName = self.logic.BASAL_VOLUME_NAME  
     ictalVolumeName = self.logic.REGISTERED_ICTAL_VOLUME_NAME    
@@ -621,21 +602,6 @@ class EpileptogenicFocusDetectionSlicelet(object):
         backgroundVolumeNode = ictalVolumeNode
       foregroundVolumeNode = subtractionOutputVolumeNode
       self.showActivations(backgroundVolumeNode, foregroundVolumeNode)
-        
-       
-   #---------------------------------------------------------------------------------------------------------------
- 
-  def onThresholdSISCOMSliderClicked(self,minValue,maxValue):  
-    print 'positions changed!'  
-    print(minValue,maxValue) 
-    node = slicer.util.getNode(self.logic.ICTAL_BASAL_SUBTRACTION)  
-    dnode=node.GetDisplayNode()
-    dnode.SetAndObserveColorNodeID('vtkMRMLColorTableNodeWarm1')
-    dnode.SetLowerThreshold(minValue)
-    dnode.SetUpperThreshold(maxValue)
-    dnode.ApplyThresholdOn()
-    self.thresholdSISCOM_minimum.setText(str(minValue))
-    self.thresholdSISCOM_maximum.setText(str(maxValue))
   
   #---------------------------------------------------------------------------------------
   def onStdDevSISCOMSliderClicked(self, value): 
@@ -662,12 +628,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
 
     import EpileptogenicFocusDetectionLogic.AContrarioLogic as acl
     a = acl.AContrarioDetection()
-    progressBar=qt.QProgressBar()
-    progressBar.setMaximum(0)
-    progressBar.setMinimum(0)
-    progressBar.show() 
     a.runAContrario()  
-    progressBar.hide()   
     mriVolumeNode = slicer.util.getNode(self.logic.MRI_VOLUME_NAME)
     if mriVolumeNode is not None:
       backgroundVolumeNode = mriVolumeNode
