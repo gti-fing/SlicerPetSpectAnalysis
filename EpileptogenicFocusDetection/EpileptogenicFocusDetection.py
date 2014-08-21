@@ -547,9 +547,14 @@ class EpileptogenicFocusDetectionSlicelet(object):
     ictalVolumeName = self.logic.REGISTERED_ICTAL_VOLUME_NAME    
     registeredIctalNode = slicer.util.getNode(ictalVolumeName)
     if registeredIctalNode is not None:
+      progressBar=qt.QProgressBar()
+      progressBar.setMaximum(0)
+      progressBar.setMinimum(0)
+      progressBar.show()    
       #self.logic.computeBasalIctalMask(basalVolumeName, ictalVolumeName, basalIctalMaskName) 
       self.logic.generateMask(basalVolumeNode,registeredIctalNode,0.4,1) 
       self.logic.displayVolume(self.logic.BASAL_ICTAL_MASK_NAME)
+      progressBar.hide()
     else:
       print "It was not possible to find the registered-ictal node!"  
   #------------------------------------------------------------------------------------------------    
@@ -657,7 +662,12 @@ class EpileptogenicFocusDetectionSlicelet(object):
 
     import EpileptogenicFocusDetectionLogic.AContrarioLogic as acl
     a = acl.AContrarioDetection()
-    a.runAContrario()    
+    progressBar=qt.QProgressBar()
+    progressBar.setMaximum(0)
+    progressBar.setMinimum(0)
+    progressBar.show() 
+    a.runAContrario()  
+    progressBar.hide()   
     mriVolumeNode = slicer.util.getNode(self.logic.MRI_VOLUME_NAME)
     if mriVolumeNode is not None:
       backgroundVolumeNode = mriVolumeNode

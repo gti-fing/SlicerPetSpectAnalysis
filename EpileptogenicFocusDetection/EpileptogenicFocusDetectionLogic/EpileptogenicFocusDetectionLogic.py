@@ -385,7 +385,7 @@ class EpileptogenicFocusDetectionLogic:
     self.generateMask(basalVolumeNode,ictalVolumeNode,0.4,1)  
  
   # ---------------------------------------------------------------------------
-  def generateMask(self,basalVolumeNode, ictalVolumeNode, threshold, zmax):  
+  def generateMask(self,basalVolumeNode, ictalVolumeNode, threshold, zmax):    
     basalArray = slicer.util.array(basalVolumeNode.GetName())
     ictalArray = slicer.util.array(ictalVolumeNode.GetName())
     self.normalizedBasalArray = np.zeros(basalArray.shape,np.double)
@@ -397,6 +397,7 @@ class EpileptogenicFocusDetectionLogic:
     maxIctal = ictalArray.max()     
     basal_mask=basalArray>threshold*maxBasal
     ictal_mask=ictalArray>threshold*maxIctal   
+    slicer.app.processEvents()
     # Compute mean and std in pixels inside the mask
     basal_mask_GreaterThanZeroIndices = (basal_mask > 0).nonzero();
     mean_basal_inside_mask = basalArray[basal_mask_GreaterThanZeroIndices].mean()
@@ -404,6 +405,7 @@ class EpileptogenicFocusDetectionLogic:
     ictal_mask_GreaterThanZeroIndices = (ictal_mask > 0).nonzero();
     mean_ictal_inside_mask = ictalArray[ictal_mask_GreaterThanZeroIndices].mean()
     std_ictal_inside_mask = ictalArray[ictal_mask_GreaterThanZeroIndices].std()
+    slicer.app.processEvents()
     # Compute the z scores maps
     basal_map = np.zeros(basalArray.shape,np.bool) # maps initialized to zero
     ictal_map = np.zeros(basalArray.shape,np.bool)
@@ -415,6 +417,7 @@ class EpileptogenicFocusDetectionLogic:
     basal_map = basal_map * basal_mask  # Remove the z<z_max outside the mask
     ictal_map[z_ictal_below_zmax]=1
     ictal_map = ictal_map * ictal_mask  # Remove the z<z_max outside the mask
+    slicer.app.processEvents()
     # Compute the intersection of the maps
     intersection_map = basal_map * ictal_map
     intersection_region = intersection_map>0 
@@ -424,6 +427,7 @@ class EpileptogenicFocusDetectionLogic:
     print "ictal normalization factor= " + str(ictal_normalization_factor)
     self.normalizedBasalArray[:] = np.double(basalArray)/basal_normalization_factor
     self.normalizedIctalArray[:] = np.double(ictalArray)/ictal_normalization_factor
+    slicer.app.processEvents()
     
     max_norm_basal =  self.normalizedBasalArray.max()    
     max_norm_ictal =  self.normalizedIctalArray.max()  
@@ -431,6 +435,7 @@ class EpileptogenicFocusDetectionLogic:
     print "max ictal normalized= " + str( max_norm_ictal)
     basalMask = self.normalizedBasalArray>0.4* max_norm_basal
     ictalMask = self.normalizedIctalArray>0.4* max_norm_ictal
+    slicer.app.processEvents()
     # Create the masks
     mask = basalMask * ictalMask
     volLogic=slicer.modules.volumes.logic()
@@ -441,6 +446,7 @@ class EpileptogenicFocusDetectionLogic:
     maskVolumeNode.SetLabelMap(True)  
     dn=maskVolumeNode.GetDisplayNode()
     dn.SetAndObserveColorNodeID('vtkMRMLColorTableNodeLabels')
+    slicer.app.processEvents()
     
     # Fill the holes in the mask
     rawMask=slicer.util.array(self.BASAL_ICTAL_MASK_NAME)
@@ -448,7 +454,7 @@ class EpileptogenicFocusDetectionLogic:
     maskArray = slicer.util.array(maskVolumeNode.GetName())
     maskArray[:]=mask
     maskVolumeNode.GetImageData().Modified()
-    
+    slicer.app.processEvents()
     
   #--------------------------------------------------------------------------------
   def binaryClosingWithBall (self, array, radius):
@@ -931,7 +937,7 @@ class EpileptogenicFocusDetectionLogic:
         b=np.double((colorIndex-2*n+1))/(numberOfHotColors-2*n)
       colorNode.SetColor(numberOfCoolColors + colorIndex, r, g, b, 1.0); 
       print "hot color index = " + str(numberOfCoolColors + colorIndex)
-
+    colorNode.SetOpacity(numberOfCoolColors,0);  
      
              
   def showDifferencesBiggerThanStdThreshold(self, minimumValue, maximumValue, negativeValuesToHide, positiveValuesToHide):
