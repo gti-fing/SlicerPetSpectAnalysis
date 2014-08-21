@@ -76,16 +76,15 @@ class dPetBrainQuantificationWidget:
     VisualizationFormLayout = qt.QFormLayout(VisualizationCollapsibleButton)
     
     #
-    # Carotid Segmentation Area
+    # K-Map Estimation Widget area
     #
-    CarSegmentationCollapsibleButton = ctk.ctkCollapsibleButton()
-    CarSegmentationCollapsibleButton.text = "Carotid Segmentation Options"
-    CarSegmentationCollapsibleButton.collapsed = 1
-    self.layout.addWidget(CarSegmentationCollapsibleButton)
+    self.KMapCollapsibleButton = ctk.ctkCollapsibleButton()
+    self.KMapCollapsibleButton.text = "K-Map Estimation options"
+    self.KMapCollapsibleButton.collapsed = 1
+    self.layout.addWidget(self.KMapCollapsibleButton)
+     # Layout visualization within the K-Map collapsible button
+    self.KMapFormLayout = qt.QFormLayout(self.KMapCollapsibleButton)
 
-    # Layout visualization within the dummy collapsible button
-    CarSegmentationFormLayout = qt.QFormLayout(CarSegmentationCollapsibleButton)
-    
     #
     # pTAC estimation Area
     #
@@ -96,6 +95,17 @@ class dPetBrainQuantificationWidget:
 
     # Layout visualization within the dummy collapsible button
     pTACestimationFormLayout = qt.QFormLayout(pTACestimationCollapsibleButton)
+    
+    #
+    # Carotid Segmentation Area
+    #
+    CarSegmentationCollapsibleButton = ctk.ctkCollapsibleButton()
+    CarSegmentationCollapsibleButton.text = "Carotid Segmentation Options"
+    CarSegmentationCollapsibleButton.collapsed = 1
+    self.layout.addWidget(CarSegmentationCollapsibleButton)
+
+    # Layout visualization within the dummy collapsible button
+    CarSegmentationFormLayout = qt.QFormLayout(CarSegmentationCollapsibleButton)
 
     #
     # Input items
@@ -224,13 +234,6 @@ class dPetBrainQuantificationWidget:
     self.ImportVenousSampleFile.setNameFilter("CSV (*.csv)")
     self.ImportVenousSampleFile.fileSelected.connect(self.onImportVenousSampleFileChanged)
 #
-    # K-Map Estimation Widget area
-    self.KMapCollapsibleButton = ctk.ctkCollapsibleButton()
-    self.KMapCollapsibleButton.text = "K-Map Estimation options"
-    self.KMapCollapsibleButton.collapsed = 1
-    self.layout.addWidget(self.KMapCollapsibleButton)
-     # Layout visualization within the K-Map collapsible button
-    self.KMapFormLayout = qt.QFormLayout(self.KMapCollapsibleButton)
     #K-Map Options area
     #K-Map Ptac input options
     label = qt.QLabel('pTAC input options')
@@ -1196,46 +1199,31 @@ class dPetBrainQuantificationLogic:
     trapecio=trapecio*deltat
     return trapecio.cumsum()
 
-  def patlak_voxel(self,integral,pTAC,voxel):#Cometarios, anadir algo con el tiempo para que ignore primeros 20-30 min, num it para afuera? o modificar
+  def patlak_voxel(self,integral,pTAC,voxel):#
     ind=(integral>0)&(voxel>0)&(pTAC>0) #Rev
     X=numpy.array(integral[ind]/pTAC[ind]) #Rev
     Y=numpy.array(voxel[ind]/pTAC[ind]) #Rev
-    
+    tolerancia=0.2
+    #Primer estimador
     #voxel casi totalmente sin datos, no opero
     if len(X)<4:
         return 0
         self.numInitshort=self.numInitshort+1
-    len_X=X.size
-    num_it=10
-    tolerancia=0.2
-    ransac=numpy.zeros(X.size,bool);
-    ransac_i=numpy.zeros(X.size,bool);
-    for i in range(num_it):
-      #Selecciono indices validos al azar
-      ind1=random.randint(0,len_X-1)
-      ind2=random.randint(0,len_X-1)
-      while ind1 == ind2:
-        ind2=random.randint(0,len_X-1)
-      #recta estimadora de iteracion i_esima
-      K_i=(Y[ind2]-Y[ind1])/(X[ind2]-X[ind1])
-      Vo_i=Y[ind1]-K_i*X[ind1]
-      #print 'ind1',ind1, 'ind1', ind1, 'K_i', K_i
-      #Conteo de elementos en rango
-      desviacion=numpy.abs((Y-K_i*X-Vo_i)/Vo_i)
-      ransac_i=desviacion<tolerancia
-      if ransac_i.sum()>ransac.sum():
-          ransac=ransac_i
-          
-    #print ransac_i.sum() #end for
+    A = numpy.vstack([X, numpy.ones(len(X))]).T      
+    K, Vo = numpy.linalg.lstsq(A, Y)[0]
+    desviacion=numpy.abs((Y-K*X-Vo)/Vo)
+    ind=desviacion<tolerancia
+    #Segundo estimador
     #establezco nuevos conjuntos de datos para operar
-    Y_2=numpy.array(Y[ransac])
-    X_2=numpy.array(X[ransac])
-    #Pocos datos, se ignora
+    Y_2=numpy.array(Y[ind])
+    X_2=numpy.array(X[ind])
+    #voxel casi totalmente sin datos, no opero
     if len(X_2)<4:
-        return 0
-        self.numEndshort=self.numEndshort+1
+       return 0
+       self.numEndshort=self.numEndshort+1
     A = numpy.vstack([X_2, numpy.ones(len(X_2))]).T      
     K, Vo = numpy.linalg.lstsq(A, Y_2)[0]
+    K=numpy.max([K,0])
     return K*10**8
     
   def patlak(self,array,DataMatrix,time,pTAC,Mask): #REVISAR MANEJO DE NEGATIVOS Y PUNTOS SIN INFORMACION (Estan entrando conteos o CPET?)
@@ -1335,9 +1323,22 @@ class dPetBrainQuantificationLogic:
     
     vImageData = KMapScalarVolume.GetImageData()
     array = vtk.util.numpy_support.vtk_to_numpy(vImageData.GetPointData().GetScalars())
+    
     #apply Estimation
     array=self.patlak(array, self.DataMatrix, self.frameTime, pTAC, Mask)
     KMapScalarVolume.GetImageData().Modified()
+    
+    self.KMap_array = numpy.zeros(array.shape)
+    self.KMap_array[:] = array/(10 ** 4)
+    
+    Hist=numpy.histogram(self.KMap_array,50,(self.KMap_array[self.KMap_array>0].min(),self.KMap_array.max()))      
+    h_v = Hist[1]
+    h_i = Hist[0]
+    step = (h_v[1]-h_v[0])/2
+    h_v = h_v[0:h_v.shape[0]-1]+step
+    dn = self.setDoubleArrayNode(h_v, h_i, 'Kmap_Histogram')
+    
+    
     return KMapScalarVolume
       
   def getpTAC(self,pTACOption,pTAC,tpTAC):
