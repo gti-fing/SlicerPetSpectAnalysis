@@ -648,7 +648,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
     negativeValuesToHide = numpy.int(value*stddevInside_mask)
     positiveValuesToHide = numpy.int(value*stddevInside_mask)
     self.logic.showDifferencesBiggerThanStdThreshold(minimumValue, maximumValue, negativeValuesToHide, positiveValuesToHide)  
-    
+    slicer.app.processEvents()
      
   #---------------------------------------------------------------------------------------------------------------     
   def onAContrarioDetectionButtonClicked(self):   
