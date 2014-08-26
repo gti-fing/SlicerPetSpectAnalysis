@@ -718,10 +718,24 @@ class EpileptogenicFocusDetectionLogic:
       basalVolumeNode = slicer.util.getNode(self.BASAL_VOLUME_NAME)
       volLogic=slicer.modules.volumes.logic()
       outputVolumeNode = volLogic.CloneVolume(basalVolumeNode,self.ICTAL_BASAL_SUBTRACTION)
+      '''
+      Convert the output volume node to short
+      '''
+      self.castVolumeNodeToShort(outputVolumeNode)  
     outputArray=slicer.util.array(self.ICTAL_BASAL_SUBTRACTION)
     outputArray[:]=resta
     outputVolumeNode.GetImageData().Modified()
     return True
+    
+    
+  def castVolumeNodeToShort(self, volumeNode):
+   imageData = volumeNode.GetImageData()  
+   cast=vtk.vtkImageCast()
+   cast.SetInputData(imageData)
+   cast.SetOutputScalarTypeToShort()
+   cast.SetOutput(imageData)
+   cast.Update()     
+   
     
   # ---------------------------------------------------------------------------
   def detectFociAContrario(self,basalVolumeNode,ictalVolumeNode):

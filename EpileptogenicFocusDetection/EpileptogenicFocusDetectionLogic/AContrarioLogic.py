@@ -176,6 +176,7 @@ class AContrarioDetection:
             # clone the original basal volume
             volLogic=slicer.modules.volumes.logic()
             nfaOutputVolumeNode = volLogic.CloneVolume(basalVolumeNode,self.ACONTRARIO_OUTPUT)
+            self.castVolumeNodeToShort(nfaOutputVolumeNode)
             
         # Asegurar que el nombre sea el correcto
         nfaOutputVolumeNode.SetName(self.ACONTRARIO_OUTPUT)        
@@ -202,6 +203,16 @@ class AContrarioDetection:
         
         pass   
     
+    
+    def castVolumeNodeToShort(self, volumeNode):
+      imageData = volumeNode.GetImageData()  
+      cast=vtk.vtkImageCast()
+      cast.SetInputData(imageData)
+      cast.SetOutputScalarTypeToShort()
+      cast.SetOutput(imageData)
+      cast.Update()  
+   
+   
     def createFociVisualizationColorMap(self,minimumValue,maximumValue):
         if (minimumValue<0):  
           numberOfCoolColors = -(minimumValue)

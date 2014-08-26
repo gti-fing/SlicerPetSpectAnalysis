@@ -43,6 +43,11 @@ class SliceletMainFrame(qt.QFrame):
 #
 class EpileptogenicFocusDetectionSlicelet(object):
   def __init__(self, parent, widgetClass=None):
+      
+    self.backgroundVolumeNode = None
+    self.SISCOMForegroundVolumeNode = None
+    self.aContrarioForegroundVolumeNode = None  
+      
     # Set up main frame
     self.parent = parent
     self.parent.setLayout(qt.QHBoxLayout())
@@ -91,6 +96,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
     #creates a new layout
     self.customLayoutGridView3x3 = 1033
     self.logic.customCompareLayout(3,3,self.customLayoutGridView3x3)
+    
 
     if widgetClass:
       self.widget = widgetClass(self.parent)
@@ -456,6 +462,8 @@ class EpileptogenicFocusDetectionSlicelet(object):
 
     
     # Connections
+    self.step3A_SISCOMDetectionCollapsibleButton.connect('contentsCollapsed (bool)',self.onStep3A_SISCOMDetectionCollapsibleButtonClicked)
+    self.step3B_AContrarioDetectionCollapsibleButton.connect('contentsCollapsed (bool)',self.onStep3B_AContrarioDetectionCollapsibleButtonClicked)
     self.aContrarioDetectionButton.connect('clicked()', self.onAContrarioDetectionButtonClicked)
     self.createMaskButton.connect('clicked()', self.onCreateMaskButtonClicked)
     self.SISCOMDetectionButton.connect('clicked()', self.onSubtractionDetectionButtonClicked)
@@ -463,7 +471,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
 
     # Open OBI fiducial selection panel when step is first opened
     self.step3A_SISCOMDetectionCollapsibleButton.setProperty('collapsed', False)
-
+    
 
 
 
@@ -561,6 +569,22 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.logic.generateMask(normalizedBasalVolumeNode,normalizedIctalVolumeNode)
     pass
   
+  #------------------------------------------------------------------------------------------------------------------
+  
+  def onStep3A_SISCOMDetectionCollapsibleButtonClicked(self, collapsed):
+    if collapsed == True:
+      print "SISCOM is collapsed!"
+    else: 
+      if (self.backgroundVolumeNode is not None) and (self.SISCOMForegroundVolumeNode is not None):
+        self.showActivations(self.backgroundVolumeNode, self.SISCOMForegroundVolumeNode) 
+    
+  def onStep3B_AContrarioDetectionCollapsibleButtonClicked(self, collapsed):
+    if collapsed == True:
+      print "AContrario is collapsed!"
+    else:
+      if (self.backgroundVolumeNode is not None) and (self.aContrarioForegroundVolumeNode is not None):
+        self.showActivations(self.backgroundVolumeNode, self.aContrarioForegroundVolumeNode) 
+                      
   #------------------------------------------------------------------------------------------------------------------      
   def onSubtractionDetectionButtonClicked(self): 
 #     basalVolumeNode = slicer.util.getNode(self.logic.BASAL_VOLUME_NAME)
@@ -599,9 +623,13 @@ class EpileptogenicFocusDetectionSlicelet(object):
         backgroundVolumeNode = mriVolumeNode
       else:
         ictalVolumeNode = slicer.util.getNode(self.logic.REGISTERED_ICTAL_VOLUME_NAME)
-        backgroundVolumeNode = ictalVolumeNode
+        if ictalVolumeNode is not None:
+          backgroundVolumeNode = ictalVolumeNode
       foregroundVolumeNode = subtractionOutputVolumeNode
       self.showActivations(backgroundVolumeNode, foregroundVolumeNode)
+      
+      self.backgroundVolumeNode = backgroundVolumeNode
+      self.SISCOMForegroundVolumeNode = foregroundVolumeNode
   
   #---------------------------------------------------------------------------------------
   def onStdDevSISCOMSliderClicked(self, value): 
@@ -627,16 +655,19 @@ class EpileptogenicFocusDetectionSlicelet(object):
 #     self.showActivations(backgroundVolumeNode, foregroundVolumeNode)
 
     import EpileptogenicFocusDetectionLogic.AContrarioLogic as acl
-    a = acl.AContrarioDetection()
-    a.runAContrario()  
+    self.aContrarioDetection = acl.AContrarioDetection()
+    self.aContrarioDetection.runAContrario()  
     mriVolumeNode = slicer.util.getNode(self.logic.MRI_VOLUME_NAME)
     if mriVolumeNode is not None:
       backgroundVolumeNode = mriVolumeNode
     else:
       ictalVolumeNode = slicer.util.getNode(self.logic.REGISTERED_ICTAL_VOLUME_NAME)
       backgroundVolumeNode = ictalVolumeNode
-    foregroundVolumeNode = slicer.util.getNode(a.ACONTRARIO_OUTPUT)
+    foregroundVolumeNode = slicer.util.getNode(self.aContrarioDetection.ACONTRARIO_OUTPUT)
     self.showActivations(backgroundVolumeNode, foregroundVolumeNode)
+    
+    self.backgroundVolumeNode = backgroundVolumeNode
+    self.aContrarioForegroundVolumeNode = foregroundVolumeNode
       
   #----------------------------------------------------------------------------------------------
   def showActivations(self,backgroundVolumeNode,foregroundVolumeNode):
