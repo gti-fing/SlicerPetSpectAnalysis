@@ -116,17 +116,8 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.step0_viewSelectorComboBox.disconnect('activated(int)', self.onViewSelect)  
     # Step 1
     self.loadBasalVolumeButton.disconnect("clicked()",self.onLoadBasalVolumeButtonClicked)
-    self.rotateBasalISButton.disconnect("clicked()",self.onRotateBasalISButtonClicked)
-    self.rotateBasalAPButton.disconnect("clicked()",self.onRotateBasalAPButtonClicked)
-    self.rotateBasalLRButton.disconnect("clicked()",self.onRotateBasalLRButtonClicked)
     self.loadIctalVolumeButton.disconnect("clicked()",self.onLoadIctalVolumeButtonClicked)
-    self.rotateIctalISButton.disconnect("clicked()",self.onRotateIctalISButtonClicked)
-    self.rotateIctalAPButton.disconnect("clicked()",self.onRotateIctalAPButtonClicked)
-    self.rotateIctalLRButton.disconnect("clicked()",self.onRotateIctalLRButtonClicked)
     self.loadMRIVolumeButton.disconnect("clicked()",self.onLoadMRIVolumeButtonClicked)
-    self.rotateMRIISButton.disconnect("clicked()",self.onRotateMRIISButtonClicked)
-    self.rotateMRIAPButton.disconnect("clicked()",self.onRotateMRIAPButtonClicked)
-    self.rotateMRILRButton.disconnect("clicked()",self.onRotateMRILRButtonClicked)
     # Step 2
     self.compareBasalIctalMRIButton.disconnect('clicked()', self.onCompareBasalIctalMRIButtonClicked)
     self.registerIctalToBasalButton.disconnect('clicked()', self.onRegisterIctalToBasalButtonClicked)
@@ -176,89 +167,52 @@ class EpileptogenicFocusDetectionSlicelet(object):
     
 
     
-    # Step 1/A): Load the inter ictal SPECT
-    self.step1A_loadBasalCollapsibleButton = ctk.ctkCollapsibleButton()
-    self.step1A_loadBasalCollapsibleButton.setProperty('collapsedHeight', 4)
-    self.step1A_loadBasalCollapsibleButton.text = "1/A) Load inter ictal (basal) SPECT"
-    self.step1_loadStudiesCollapsibleButtonLayout.addWidget(self.step1A_loadBasalCollapsibleButton)
-    loadBasalCollapsibleButtonLayout = qt.QFormLayout(self.step1A_loadBasalCollapsibleButton)
-    loadBasalCollapsibleButtonLayout.setContentsMargins(12,4,4,4)
-    loadBasalCollapsibleButtonLayout.setSpacing(4)
-    
+    # Step 1/A): Load the inter ictal SPECT    
     # Buttons to connect
     self.loadBasalVolumeButton = qt.QPushButton("Load basal volume")
-    self.rotateBasalISButton = qt.QPushButton("Rotate around the IS axis")
-    self.rotateBasalAPButton = qt.QPushButton("Rotate around the AP axis")
-    self.rotateBasalLRButton = qt.QPushButton("Rotate around the LR axis")
-    
     # Add to the widget
-    loadBasalCollapsibleButtonLayout.addRow("Load basal volume:",self.loadBasalVolumeButton)
-    loadBasalCollapsibleButtonLayout.addRow("Rotate IS axis:", self.rotateBasalISButton)
-    loadBasalCollapsibleButtonLayout.addRow("Rotate AP axis:", self.rotateBasalAPButton)
-    loadBasalCollapsibleButtonLayout.addRow("Rotate LR axis:", self.rotateBasalLRButton)
-    
-    
-    # Connections
-    self.loadBasalVolumeButton.connect("clicked()",self.onLoadBasalVolumeButtonClicked)
-    self.rotateBasalISButton.connect("clicked()",self.onRotateBasalISButtonClicked)
-    self.rotateBasalAPButton.connect("clicked()",self.onRotateBasalAPButtonClicked)
-    self.rotateBasalLRButton.connect("clicked()",self.onRotateBasalLRButtonClicked)
+    self.step1_loadStudiesCollapsibleButtonLayout.addRow("Load basal volume:",self.loadBasalVolumeButton)
 
     # Step 1/B): Load ictal SPECT
-    self.step1B_loadIctalCollapsibleButton = ctk.ctkCollapsibleButton()
-    self.step1B_loadIctalCollapsibleButton.setProperty('collapsedHeight', 4)
-    self.step1B_loadIctalCollapsibleButton.text = "1/B) Load ictal SPECT"
-    self.step1_loadStudiesCollapsibleButtonLayout.addWidget(self.step1B_loadIctalCollapsibleButton)
-    loadIctalCollapsibleButtonLayout = qt.QFormLayout(self.step1B_loadIctalCollapsibleButton)
-    loadIctalCollapsibleButtonLayout.setContentsMargins(12,4,4,4)
-    loadIctalCollapsibleButtonLayout.setSpacing(4)
-
-   # Buttons to connect
-    self.loadIctalVolumeButton = qt.QPushButton("Load ictal volume")
-    self.rotateIctalISButton = qt.QPushButton("Rotate around the IS axis")
-    self.rotateIctalAPButton = qt.QPushButton("Rotate around the AP axis")
-    self.rotateIctalLRButton = qt.QPushButton("Rotate around the LR axis")
-    
+    # Buttons to connect
+    self.loadIctalVolumeButton = qt.QPushButton("Load ictal volume")    
     # Add to the widget
-    loadIctalCollapsibleButtonLayout.addRow("Load ictal volume:", self.loadIctalVolumeButton)
-    loadIctalCollapsibleButtonLayout.addRow("Rotate IS:", self.rotateIctalISButton)
-    loadIctalCollapsibleButtonLayout.addRow("Rotate AP:", self.rotateIctalAPButton)
-    loadIctalCollapsibleButtonLayout.addRow("Rotate LR:", self.rotateIctalLRButton)
-    
-    # Connections
-    self.loadIctalVolumeButton.connect("clicked()",self.onLoadIctalVolumeButtonClicked)
-    self.rotateIctalISButton.connect("clicked()",self.onRotateIctalISButtonClicked)
-    self.rotateIctalAPButton.connect("clicked()",self.onRotateIctalAPButtonClicked)
-    self.rotateIctalLRButton.connect("clicked()",self.onRotateIctalLRButtonClicked)
-    
+    self.step1_loadStudiesCollapsibleButtonLayout.addRow("Load ictal volume:", self.loadIctalVolumeButton)
     
     # Step 1/C): Load MRI
-    self.step1C_loadMRICollapsibleButton = ctk.ctkCollapsibleButton()
-    self.step1C_loadMRICollapsibleButton.setProperty('collapsedHeight', 4)
-    self.step1C_loadMRICollapsibleButton.text = "1/C) Load MRI"
-    self.step1_loadStudiesCollapsibleButtonLayout.addWidget(self.step1C_loadMRICollapsibleButton)
-    loadMRICollapsibleButtonLayout = qt.QFormLayout(self.step1C_loadMRICollapsibleButton)
-    loadMRICollapsibleButtonLayout.setContentsMargins(12,4,4,4)
-    loadMRICollapsibleButtonLayout.setSpacing(4)
-
-   # Buttons to connect
-    self.loadMRIVolumeButton = qt.QPushButton("Load MRI volume")
-    self.rotateMRIISButton = qt.QPushButton("Rotate IS")
-    self.rotateMRIAPButton = qt.QPushButton("Rotate AP")
-    self.rotateMRILRButton = qt.QPushButton("Rotate LR")
-    
+    # Buttons to connect
+    self.loadMRIVolumeButton = qt.QPushButton("Load MRI volume")   
     # Add to the widget
-    loadMRICollapsibleButtonLayout.addRow("Load ictal volume:", self.loadMRIVolumeButton)
-    loadMRICollapsibleButtonLayout.addRow("Rotate IS:", self.rotateMRIISButton)
-    loadMRICollapsibleButtonLayout.addRow("Rotate AP:", self.rotateMRIAPButton)
-    loadMRICollapsibleButtonLayout.addRow("Rotate LR:", self.rotateMRILRButton)
+    self.step1_loadStudiesCollapsibleButtonLayout.addRow("Load MRI volume:", self.loadMRIVolumeButton)
     
+    self.visualizationFrame = qt.QFrame()
+    self.visualizationFrame.setLayout(qt.QVBoxLayout())
+    visualizationLayout = self.visualizationFrame.layout()
     
+    # Active Volume Frame
+    self.activeVolumeFrame = qt.QFrame()
+    self.activeVolumeFrame.setLayout(qt.QHBoxLayout())
+    # active volume label
+    self.activeVolumeLabel = qt.QLabel("Active Volume: ")
+    # active volume combo box
+    self.activeVolumeNodeSelector = slicer.qMRMLNodeComboBox()
+    self.activeVolumeNodeSelector.nodeTypes = ( ("vtkMRMLScalarVolumeNode"), "" )
+    self.activeVolumeNodeSelector.addAttribute( "vtkMRMLScalarVolumeNode", "LabelMap", 0 )
+    self.activeVolumeNodeSelector.addEnabled = False
+    self.activeVolumeNodeSelector.removeEnabled = False
+    self.activeVolumeNodeSelector.setMRMLScene( slicer.mrmlScene )
+    self.activeVolumeNodeSelector.setToolTip( "Choose the volume to visualize" )
+    # active volume layout
+    self.activeVolumeFrame.layout().addWidget(self.activeVolumeLabel)
+    self.activeVolumeFrame.layout().addWidget(self.activeVolumeNodeSelector)
+    
+    visualizationLayout.addWidget(self.activeVolumeFrame)
+    self.step1_loadStudiesCollapsibleButtonLayout.addWidget(self.visualizationFrame)
     # Connections
+    self.activeVolumeNodeSelector.connect("nodeActivated (vtkMRMLNode*)", self.onActiveVolumeNodeSelectorClicked)
+    self.loadBasalVolumeButton.connect("clicked()",self.onLoadBasalVolumeButtonClicked)
+    self.loadIctalVolumeButton.connect("clicked()",self.onLoadIctalVolumeButtonClicked)
     self.loadMRIVolumeButton.connect("clicked()",self.onLoadMRIVolumeButtonClicked)
-    self.rotateMRIISButton.connect("clicked()",self.onRotateMRIISButtonClicked)
-    self.rotateMRIAPButton.connect("clicked()",self.onRotateMRIAPButtonClicked)
-    self.rotateMRILRButton.connect("clicked()",self.onRotateMRILRButtonClicked)
 
  
 
@@ -480,41 +434,24 @@ class EpileptogenicFocusDetectionSlicelet(object):
   def onLoadBasalVolumeButtonClicked(self):
     if slicer.app.ioManager().openAddVolumeDialog():
       self.logic.setActiveVolumeAsBasal();
-  #------------------------------------------------------------------------------------------------    
-  def onRotateBasalISButtonClicked(self):
-    self.logic.rotateBasal('IS');
-  #------------------------------------------------------------------------------------------------    
-  def onRotateBasalAPButtonClicked(self):
-    self.logic.rotateBasal('AP');  
-  #------------------------------------------------------------------------------------------------    
-  def onRotateBasalLRButtonClicked(self):
-    self.logic.rotateBasal('LR');
+      basalNode = slicer.util.getNode(self.logic.BASAL_VOLUME_NAME)
+      self.activeVolumeNodeSelector.setCurrentNodeID(basalNode.GetID())
   #------------------------------------------------------------------------------------------------    
   def onLoadIctalVolumeButtonClicked(self):
     if slicer.app.ioManager().openAddVolumeDialog():
       self.logic.setActiveVolumeAsIctal();
-  #------------------------------------------------------------------------------------------------    
-  def onRotateIctalISButtonClicked(self):
-    self.logic.rotateIctal('IS');
-  #------------------------------------------------------------------------------------------------    
-  def onRotateIctalAPButtonClicked(self):
-    self.logic.rotateIctal('AP');  
-  #------------------------------------------------------------------------------------------------    
-  def onRotateIctalLRButtonClicked(self):
-    self.logic.rotateIctal('LR');
+      ictalNode = slicer.util.getNode(self.logic.ICTAL_VOLUME_NAME)
+      self.activeVolumeNodeSelector.setCurrentNodeID(ictalNode.GetID())
   #------------------------------------------------------------------------------------------------    
   def onLoadMRIVolumeButtonClicked(self):
     if slicer.app.ioManager().openAddVolumeDialog():
-      self.logic.setActiveVolumeAsMRI();
-  #------------------------------------------------------------------------------------------------    
-  def onRotateMRIISButtonClicked(self):
-    self.logic.rotateMRI('IS');
-  #------------------------------------------------------------------------------------------------    
-  def onRotateMRIAPButtonClicked(self):
-    self.logic.rotateMRI('AP');  
-  #------------------------------------------------------------------------------------------------    
-  def onRotateMRILRButtonClicked(self):
-    self.logic.rotateMRI('LR');
+      self.logic.setActiveVolumeAsMRI(); 
+      mriNode = slicer.util.getNode(self.logic.MRI_VOLUME_NAME)
+      self.activeVolumeNodeSelector.setCurrentNodeID(mriNode.GetID())
+  #------------------------------------------------------------------------------------------------
+  def onActiveVolumeNodeSelectorClicked(self, node):
+    if node is not None: 
+      self.logic.displayVolume(node.GetName())
   #------------------------------------------------------------------------------------------------        
   ### STEP 2 #######
   def onCompareBasalIctalMRIButtonClicked(self):
