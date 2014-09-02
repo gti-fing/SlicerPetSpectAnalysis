@@ -102,12 +102,16 @@ class EpileptogenicFocusDetectionLogic:
         crosshairNode.SetCrosshairMode(0)
   
   # ---------------------------------------------------------------------------      
-  def displayVolumeInSlice(self,volumeName, sliceLayoutName, sliceOrientation = "Axial"):
+  def displayVolumeInSlice(self,volumeName, sliceLayoutName, sliceOrientation = "Axial", inForeground = False, opacity = 1):
     compositeNode = self.getCompositeNode(sliceLayoutName)
     sliceNode = self.getSliceNode(sliceLayoutName)
     volumeNode = slicer.util.getNode(volumeName)
     if not compositeNode == None and not volumeNode == None:
-      compositeNode.SetBackgroundVolumeID(volumeNode.GetID())
+      if inForeground == False:  
+        compositeNode.SetBackgroundVolumeID(volumeNode.GetID())
+      else:
+        compositeNode.SetForegroundVolumeID(volumeNode.GetID())   
+        compositeNode.SetForegroundOpacity(opacity) 
     else:
       print("displayVolumeInSlice failed")
     if not sliceNode==None:
@@ -150,6 +154,29 @@ class EpileptogenicFocusDetectionLogic:
     self.displayVolumeInSlice(basalIctalMaskName , 'Compare7', 'Axial')
     self.displayVolumeInSlice(basalIctalMaskName, 'Compare8', 'Sagittal')
     self.displayVolumeInSlice(basalIctalMaskName, 'Compare9', 'Coronal')
+    
+    crosshairNode = slicer.util.getNode('vtkMRMLCrosshairNode*')
+    crosshairNode.SetCrosshairMode(1)
+    crosshairNode.SetNavigation(True)
+    
+  # ---------------------------------------------------------------------------
+  def compareAContrarioSISCOM(self, SISCOMVolumeName, AContrarioVolumeName, MRIVolumeName):
+       
+    self.displayVolumeInSlice(SISCOMVolumeName, 'Red', 'Axial', True)
+    self.displayVolumeInSlice(SISCOMVolumeName, 'Yellow', 'Sagittal', True)
+    self.displayVolumeInSlice(SISCOMVolumeName, 'Green', 'Coronal', True)
+    
+    self.displayVolumeInSlice(MRIVolumeName, 'Red', 'Axial')
+    self.displayVolumeInSlice(MRIVolumeName, 'Yellow', 'Sagittal')
+    self.displayVolumeInSlice(MRIVolumeName, 'Green', 'Coronal')
+    
+    self.displayVolumeInSlice(AContrarioVolumeName, 'Slice4', 'Axial', True)
+    self.displayVolumeInSlice(AContrarioVolumeName, 'Slice5', 'Sagittal', True)
+    self.displayVolumeInSlice(AContrarioVolumeName, 'Slice6', 'Coronal', True)
+    
+    self.displayVolumeInSlice(MRIVolumeName, 'Slice4', 'Axial')
+    self.displayVolumeInSlice(MRIVolumeName, 'Slice5', 'Sagittal')
+    self.displayVolumeInSlice(MRIVolumeName, 'Slice6', 'Coronal')
     
     crosshairNode = slicer.util.getNode('vtkMRMLCrosshairNode*')
     crosshairNode.SetCrosshairMode(1)
