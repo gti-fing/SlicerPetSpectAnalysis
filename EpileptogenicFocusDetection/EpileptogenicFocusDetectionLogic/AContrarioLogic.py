@@ -28,6 +28,14 @@ class AContrarioDetection:
         
         self.ACONTRARIO_OUTPUT = "NFA Output Volume Node"
         
+        
+        self.customLayoutGridView3x3 = 23
+        self.IsAContrarioOutput = False
+        
+        pass
+    
+    
+    def getInputDataFromScene(self):
         # Get the numpy arrays
         self.inter = self.getArrayFromSlicer(self.BASAL_VOLUME_NAME)
         self.ic = self.getArrayFromSlicer(self.REGISTERED_ICTAL_VOLUME_NAME)
@@ -38,11 +46,6 @@ class AContrarioDetection:
         self.icNormalized = self.ic
         self.Substraction = self.inter
         
-        
-        self.customLayoutGridView3x3 = 23
-        
-        pass
-    
         
     def runTestErosion(self):
         pulso=np.zeros((100,100,100))
@@ -201,7 +204,8 @@ class AContrarioDetection:
         dnode.SetWindowLevelMinMax(minimumValue,maximumValue)
         dnode.SetAndObserveColorNodeID(colorMapNode.GetID())
         
-        pass   
+        self.IsAContrarioOutput = True 
+        return True
     
     
     def castVolumeNodeToShort(self, volumeNode):
@@ -269,7 +273,6 @@ class AContrarioDetection:
         
         ic=self.ic
         inter=self.inter
-        print 'A ver si estamos en la ultima version ????'
         self.acontrario_detection(ic, inter, debug=True)
         
 #        sitkIcNormalized = sitk.GetImageFromArray(self.icNormalized)

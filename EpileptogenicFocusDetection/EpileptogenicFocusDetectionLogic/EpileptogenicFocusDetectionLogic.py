@@ -43,6 +43,14 @@ class EpileptogenicFocusDetectionLogic:
     self.FOCI_DETECTION_COLORMAP_NAME = "FociDetectionColorMap"
     self.FOCI_ACONTRARIO_DETECTION_COLORMAP_NAME = "AContrarioFociDetectionColorMap"
     
+    self.IsBasalVolume = False
+    self.IsIctalVolume = False
+    self.IsMRIVolume = False
+    self.IsBasalIctalMaskComputed = False
+    self.IsBasalIctalRegistered = False
+    self.IsBasalMRIRegistered = False
+    self.IsSISCOMOutput = False
+    
 
   # ---------------------------------------------------------------------------
   def displayVolume(self, volumeName):
@@ -102,9 +110,10 @@ class EpileptogenicFocusDetectionLogic:
         crosshairNode.SetCrosshairMode(0)
   
   # ---------------------------------------------------------------------------      
-  def displayVolumeInSlice(self,volumeName, sliceLayoutName, sliceOrientation = "Axial", inForeground = False, opacity = 1):
+  def displayVolumeInSlice(self,volumeName, sliceLayoutName, sliceOrientation = "Axial", inForeground = False, opacity = 1, visible3D = False):
     compositeNode = self.getCompositeNode(sliceLayoutName)
     sliceNode = self.getSliceNode(sliceLayoutName)
+    sliceNode.SetSliceVisible(visible3D)
     volumeNode = slicer.util.getNode(volumeName)
     if not compositeNode == None and not volumeNode == None:
       if inForeground == False:  
@@ -122,6 +131,14 @@ class EpileptogenicFocusDetectionLogic:
     layoutNode = slicer.mrmlScene.GetNodesByClass('vtkMRMLLayoutNode').GetItemAsObject(0)
     return layoutNode
   
+  #-----------------------------------------------------------------------------
+  def displaySlicesIn3D(self, displayIn3D = True):
+    redNode=slicer.util.getNode("vtkMRMLSliceNodeRed")
+    redNode.SetSliceVisible(displayIn3D)
+    greenNode=slicer.util.getNode("vtkMRMLSliceNodeGreen")
+    greenNode.SetSliceVisible(displayIn3D)
+    yellowNode=slicer.util.getNode("vtkMRMLSliceNodeYellow")
+    yellowNode.SetSliceVisible(displayIn3D)
   # ---------------------------------------------------------------------------  
   def compareBasalIctalMRI(self, basalVolumeName, ictalVolumeName, mriVolumeName):
     self.displayVolumeInSlice(basalVolumeName, 'Compare1', 'Axial')
@@ -186,17 +203,19 @@ class EpileptogenicFocusDetectionLogic:
   def setActiveVolumeAsBasal(self):
       self.setActiveVolumeName(self.BASAL_VOLUME_NAME);
       self.initializeVolumeTransform(self.BASAL_VOLUME_NAME, self.BASAL_TRANSFORM_NAME)
+      self.IsBasalVolume = True
   
   # ---------------------------------------------------------------------------    
   def setActiveVolumeAsIctal(self):
       self.setActiveVolumeName(self.ICTAL_VOLUME_NAME);
       self.initializeVolumeTransform(self.ICTAL_VOLUME_NAME, self.ICTAL_TRANSFORM_NAME)
+      self.IsIctalVolume = True
   
   # ---------------------------------------------------------------------------    
   def setActiveVolumeAsMRI(self):
       self.setActiveVolumeName(self.MRI_VOLUME_NAME);            
       self.initializeVolumeTransform(self.MRI_VOLUME_NAME, self.MRI_TRANSFORM_NAME)
-  
+      self.IsMRIVolume = True
   # ---------------------------------------------------------------------------
   def rotateBasal(self, axis):
       self.add180RotationAroundAxis(self.BASAL_TRANSFORM_NAME, axis)
@@ -211,11 +230,13 @@ class EpileptogenicFocusDetectionLogic:
   
   # ---------------------------------------------------------------------------
   def registerIctalToBasal(self):
-    return self.registerVolumes(self.BASAL_VOLUME_NAME, self.BASAL_TRANSFORM_NAME, self.ICTAL_VOLUME_NAME, self.ICTAL_TRANSFORM_NAME, self.ICTAL_TO_BASAL_REGISTRATION_TRANSFORM_NAME)
-
+    ret = self.registerVolumes(self.BASAL_VOLUME_NAME, self.BASAL_TRANSFORM_NAME, self.ICTAL_VOLUME_NAME, self.ICTAL_TRANSFORM_NAME, self.ICTAL_TO_BASAL_REGISTRATION_TRANSFORM_NAME)
+    self.IsBasalIctalRegistered = ret
+    return ret
   # ---------------------------------------------------------------------------
   def registerBasalToMRI(self):
     ret = self.registerVolumes(self.MRI_VOLUME_NAME, self.MRI_TRANSFORM_NAME, self.BASAL_VOLUME_NAME, self.BASAL_TRANSFORM_NAME, self.BASAL_TO_MRI_REGISTRATION_TRANSFORM_NAME)
+    self.IsBasalMRIRegistered = ret
     if ret:
       #concatenate with IctalToBasal
       ictalToBasalTransformNode = slicer.util.getNode(self.ICTAL_TO_BASAL_REGISTRATION_TRANSFORM_NAME);
@@ -482,6 +503,9 @@ class EpileptogenicFocusDetectionLogic:
     maskArray[:]=mask
     maskVolumeNode.GetImageData().Modified()
     slicer.app.processEvents()
+    self.IsBasalIctalMaskComputed = True
+    return self.IsBasalIctalMaskComputed
+    
     
   #--------------------------------------------------------------------------------
   def binaryClosingWithBall (self, array, radius):
@@ -752,6 +776,7 @@ class EpileptogenicFocusDetectionLogic:
     outputArray=slicer.util.array(self.ICTAL_BASAL_SUBTRACTION)
     outputArray[:]=resta
     outputVolumeNode.GetImageData().Modified()
+    self.IsSISCOMOutput = True
     return True
     
     

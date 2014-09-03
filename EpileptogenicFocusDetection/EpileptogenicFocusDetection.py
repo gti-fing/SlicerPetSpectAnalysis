@@ -86,6 +86,10 @@ class EpileptogenicFocusDetectionSlicelet(object):
     # Create module logic
     self.logic = EpileptogenicFocusDetectionLogic.EpileptogenicFocusDetectionLogic() 
     
+    # Create an instance of a-contrario logic
+    import EpileptogenicFocusDetectionLogic.AContrarioLogic as acl
+    self.aContrarioDetection = acl.AContrarioDetection()
+    
     # Set up step panels
     self.setup_Step0_LayoutSelection()
     #self.setup_Step1_LoadPlanningData()
@@ -118,6 +122,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
     # Step 0
     self.step0_viewSelectorComboBox.disconnect('activated(int)', self.onViewSelect)  
     # Step 1
+    self.activeVolumeNodeSelector.disconnect("nodeActivated (vtkMRMLNode*)", self.onActiveVolumeNodeSelectorClicked)
     self.loadBasalVolumeButton.disconnect("clicked()",self.onLoadBasalVolumeButtonClicked)
     self.loadIctalVolumeButton.disconnect("clicked()",self.onLoadIctalVolumeButtonClicked)
     self.loadMRIVolumeButton.disconnect("clicked()",self.onLoadMRIVolumeButtonClicked)
@@ -127,9 +132,14 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.computeBasalAndIctalMaskButton.disconnect("clicked()",self.onComputeBasalAndIctalMaskButtonClicked)
     self.checkBasalAndIctalMaskButton.disconnect("clicked()",self.onCheckBasalAndIctalMaskButtonClicked)
     self.registerBasalToMRIButton.disconnect('clicked()', self.onRegisterBasalToMRIButtonClicked)
-    # Step 3
+    # Step 3    
+    self.step3_fociDetectionCollapsibleButton.connect('contentsCollapsed (bool)',self.onStep3_fociDetectionCollapsibleButtonClicked)
+    self.step3A_SISCOMDetectionCollapsibleButton.disconnect('contentsCollapsed (bool)',self.onStep3A_SISCOMDetectionCollapsibleButtonClicked)
+    self.step3B_AContrarioDetectionCollapsibleButton.disconnect('contentsCollapsed (bool)',self.onStep3B_AContrarioDetectionCollapsibleButtonClicked)
     self.aContrarioDetectionButton.disconnect('clicked()', self.onAContrarioDetectionButtonClicked)
     self.SISCOMDetectionButton.disconnect('clicked()', self.onSubtractionDetectionButtonClicked)
+    self.compareDetectionsButton.disconnect('clicked()', self.onCompareDetectionsButtonClicked)
+    self.stdDevSISCOMSlider.disconnect('valueChanged(double)', self.onStdDevSISCOMSliderClicked)
 
 
   def setup_Step0_LayoutSelection(self):
@@ -229,48 +239,20 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.step2_RegistrationCollapsibleButtonLayout = qt.QFormLayout(self.step2_RegistrationCollapsibleButton)
     self.step2_RegistrationCollapsibleButtonLayout.setContentsMargins(12,4,4,4)
     self.step2_RegistrationCollapsibleButtonLayout.setSpacing(4)
-
-    # Basal volume node selector
-    self.basalVolumeNodeSelector = slicer.qMRMLNodeComboBox()
-    self.basalVolumeNodeSelector.nodeTypes = ( ("vtkMRMLScalarVolumeNode"), "" )
-    self.basalVolumeNodeSelector.addAttribute( "vtkMRMLScalarVolumeNode", "LabelMap", 0 )
-    self.basalVolumeNodeSelector.addEnabled = False
-    self.basalVolumeNodeSelector.removeEnabled = False
-    self.basalVolumeNodeSelector.setMRMLScene( slicer.mrmlScene )
-    self.basalVolumeNodeSelector.setToolTip( "Pick the basal volume for registration." )
-    #self.step2_RegistrationCollapsibleButtonLayout.addRow('Basal volume: ', self.basalVolumeNodeSelector)
-
-    # Ictal volume node selector
-    self.ictalVolumeNodeSelector = slicer.qMRMLNodeComboBox()
-    self.ictalVolumeNodeSelector.nodeTypes = ( ("vtkMRMLScalarVolumeNode"), "" )
-    self.ictalVolumeNodeSelector.addAttribute( "vtkMRMLScalarVolumeNode", "LabelMap", 0 )
-    self.ictalVolumeNodeSelector.addEnabled = False
-    self.ictalVolumeNodeSelector.removeEnabled = False
-    self.ictalVolumeNodeSelector.setMRMLScene( slicer.mrmlScene )
-    self.ictalVolumeNodeSelector.setToolTip( "Pick the ictal volume for registration." )
-    #self.step2_RegistrationCollapsibleButtonLayout.addRow('Ictal volume: ', self.ictalVolumeNodeSelector)
-
-  
-    # MRI node selector
-    self.MRISelector = slicer.qMRMLNodeComboBox()
-    self.MRISelector.nodeTypes = ( ("vtkMRMLScalarVolumeNode"), "" )
-    self.MRISelector.addAttribute( "vtkMRMLScalarVolumeNode", "LabelMap", 0 )
-    self.MRISelector.addEnabled = False
-    self.MRISelector.removeEnabled = False
-    self.MRISelector.setMRMLScene( slicer.mrmlScene )
-    self.MRISelector.setToolTip( "Pick the MRI volume for registration." )
-    #self.step2_RegistrationCollapsibleButtonLayout.addRow('MRI volume: ', self.MRISelector)
    
     
     # Basal to Ictal registration button
     self.registerIctalToBasalButton = qt.QPushButton("Perform registration")
     self.registerIctalToBasalButton.toolTip = "Register Ictal volume to Basal volume"
     self.registerIctalToBasalButton.name = "registerIctalToBasalButton"
+    self.registerIctalToBasalButton.setEnabled(False)
     self.step2_RegistrationCollapsibleButtonLayout.addRow('Register Basal to Ictal: ', self.registerIctalToBasalButton)
     
     # Compute and check basal to ictal mask buttons 
     self.computeBasalAndIctalMaskButton = qt.QPushButton("Compute basal and ictal mask")
+    self.computeBasalAndIctalMaskButton.setEnabled(False)
     self.checkBasalAndIctalMaskButton = qt.QPushButton("Check basal and ictal mask")
+    self.checkBasalAndIctalMaskButton.setEnabled(False)
     self.step2_RegistrationCollapsibleButtonLayout.addRow('Compute Basal and Ictal mask: ', self.computeBasalAndIctalMaskButton)
     self.step2_RegistrationCollapsibleButtonLayout.addRow('Check Basal and Ictal mask: ', self.checkBasalAndIctalMaskButton)
     
@@ -279,15 +261,18 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.registerBasalToMRIButton = qt.QPushButton("Perform registration")
     self.registerBasalToMRIButton.toolTip = "Register Basal volume to MRI volume"
     self.registerBasalToMRIButton.name = "registerBasalToMRIButton"
+    self.registerBasalToMRIButton.setEnabled(False)
     self.step2_RegistrationCollapsibleButtonLayout.addRow('Register Basal to MRI: ', self.registerBasalToMRIButton)
     
     # Compare Basal, Ictal  and MRI button
     self.compareBasalIctalMRIButton = qt.QPushButton("Compare basal, ictal and MRI")
     self.compareBasalIctalMRIButton.toolTip = "Compare basal, ictal and MRI volumes"
     self.compareBasalIctalMRIButton.name = "compareBasalIctalMRIButton"
+    self.compareBasalIctalMRIButton.setEnabled(False)
     self.step2_RegistrationCollapsibleButtonLayout.addRow('Compare basal, ictal and MRI volumes: ', self.compareBasalIctalMRIButton)   
 
     # Connections
+    self.step2_RegistrationCollapsibleButton.connect('contentsCollapsed (bool)',self.onStep2_RegistrationCollapsibleButtonClicked)
     self.compareBasalIctalMRIButton.connect('clicked()', self.onCompareBasalIctalMRIButtonClicked)
     self.registerIctalToBasalButton.connect('clicked()', self.onRegisterIctalToBasalButtonClicked)
     self.computeBasalAndIctalMaskButton.connect("clicked()",self.onComputeBasalAndIctalMaskButtonClicked)
@@ -320,11 +305,12 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.SISCOMDetectionButton = qt.QPushButton("Perform subtraction of images")
     self.SISCOMDetectionButton.toolTip = "Perform the subtraction of the images: ictal - basal"
     self.SISCOMDetectionButton.name = "SISCOMDetectionButton"
+    self.SISCOMDetectionButton.setEnabled(False)
     self.step3A_SISCOMDetectionCollapsibleButtonLayout.addRow('Foci detection: ', self.SISCOMDetectionButton)
     
     # SISCOM Threshold frame    
     self.stdDevSISCOMSlider=ctk.ctkSliderWidget()
-    self.stdDevSISCOMSlider.setEnabled('False')
+    self.stdDevSISCOMSlider.setEnabled(False)
     
     #self.step3A_SISCOMDetectionCollapsibleButtonLayout.addRow('Visualization threshold: ', self.thresholdSISCOMFrame)
     self.step3A_SISCOMDetectionCollapsibleButtonLayout.addRow('Standard deviations threshold: ', self.stdDevSISCOMSlider)
@@ -346,6 +332,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.aContrarioDetectionButton = qt.QPushButton("Perform a-contrario detection")
     self.aContrarioDetectionButton.toolTip = "Perform a-contrario detection"
     self.aContrarioDetectionButton.name = "aContrarioDetectionButton"
+    self.aContrarioDetectionButton.setEnabled(False)
     self.step3B_AContrarioDetectionCollapsibleButtonLayout.addRow('Foci detection: ', self.aContrarioDetectionButton)
 
 
@@ -362,10 +349,18 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.compareDetectionsButton = qt.QPushButton("Compare detections")
     self.compareDetectionsButton.toolTip = "Compare SISCOM and A-contrario detections"
     self.compareDetectionsButton.name = "compareDetectionsButton"
+    self.compareDetectionsButton.setEnabled(False)
     self.step3C_CompareDetectionsCollapsibleButtonLayout.addRow('Compare SISCOM and A-contrario detections: ', self.compareDetectionsButton)
     
     
+     # Add substeps in a button group
+    self.step3_FociDetectionCollapsibleButtonGroup = qt.QButtonGroup()
+    self.step3_FociDetectionCollapsibleButtonGroup.addButton(self.step3A_SISCOMDetectionCollapsibleButton)
+    self.step3_FociDetectionCollapsibleButtonGroup.addButton(self.step3B_AContrarioDetectionCollapsibleButton)
+    self.step3_FociDetectionCollapsibleButtonGroup.addButton(self.step3C_CompareDetectionsCollapsibleButton)
+    
     # Connections
+    self.step3_fociDetectionCollapsibleButton.connect('contentsCollapsed (bool)',self.onStep3_fociDetectionCollapsibleButtonClicked)
     self.step3A_SISCOMDetectionCollapsibleButton.connect('contentsCollapsed (bool)',self.onStep3A_SISCOMDetectionCollapsibleButtonClicked)
     self.step3B_AContrarioDetectionCollapsibleButton.connect('contentsCollapsed (bool)',self.onStep3B_AContrarioDetectionCollapsibleButtonClicked)
     self.aContrarioDetectionButton.connect('clicked()', self.onAContrarioDetectionButtonClicked)
@@ -385,22 +380,30 @@ class EpileptogenicFocusDetectionSlicelet(object):
       self.logic.setActiveVolumeAsBasal();
       basalNode = slicer.util.getNode(self.logic.BASAL_VOLUME_NAME)
       self.activeVolumeNodeSelector.setCurrentNodeID(basalNode.GetID())
+      self.logic.displaySlicesIn3D()
   #------------------------------------------------------------------------------------------------    
   def onLoadIctalVolumeButtonClicked(self):
     if slicer.app.ioManager().openAddVolumeDialog():
       self.logic.setActiveVolumeAsIctal();
       ictalNode = slicer.util.getNode(self.logic.ICTAL_VOLUME_NAME)
       self.activeVolumeNodeSelector.setCurrentNodeID(ictalNode.GetID())
+      self.logic.displaySlicesIn3D()
   #------------------------------------------------------------------------------------------------    
   def onLoadMRIVolumeButtonClicked(self):
     if slicer.app.ioManager().openAddVolumeDialog():
       self.logic.setActiveVolumeAsMRI(); 
       mriNode = slicer.util.getNode(self.logic.MRI_VOLUME_NAME)
       self.activeVolumeNodeSelector.setCurrentNodeID(mriNode.GetID())
+      self.logic.displaySlicesIn3D()
   #------------------------------------------------------------------------------------------------
   def onActiveVolumeNodeSelectorClicked(self, node):
     if node is not None: 
       self.logic.displayVolume(node.GetName())
+      self.layoutWidget.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutFourUpView)  
+      self.logic.displaySlicesIn3D()
+      slicer.util.resetSliceViews()
+      slicer.util.resetThreeDViews()
+      
   #------------------------------------------------------------------------------------------------        
   ### STEP 2 #######
   def onCompareBasalIctalMRIButtonClicked(self):
@@ -413,11 +416,12 @@ class EpileptogenicFocusDetectionSlicelet(object):
       ictalVolumeName = self.logic.ICTAL_VOLUME_NAME
     mriVolumeName = self.logic.MRI_VOLUME_NAME
     self.logic.compareBasalIctalMRI(basalVolumeName,ictalVolumeName,mriVolumeName)  
+    slicer.util.resetSliceViews()
     
   #------------------------------------------------------------------------------------------------          
   def onRegisterIctalToBasalButtonClicked(self):  
     if self.logic.registerIctalToBasal():    
-      print('Registrooooooo!')
+      self.computeBasalAndIctalMaskButton.setEnabled(self.logic.IsBasalIctalRegistered)
       
   #------------------------------------------------------------------------------------------------          
   def onComputeBasalAndIctalMaskButtonClicked(self):
@@ -428,6 +432,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
     if registeredIctalNode is not None:
       self.logic.generateMask(basalVolumeNode,registeredIctalNode,0.4,1) 
       self.logic.displayVolume(self.logic.BASAL_ICTAL_MASK_NAME)
+      self.checkBasalAndIctalMaskButton.setEnabled(self.logic.IsBasalIctalMaskComputed)
     else:
       print "It was not possible to find the registered-ictal node!"  
   #------------------------------------------------------------------------------------------------    
@@ -438,26 +443,40 @@ class EpileptogenicFocusDetectionSlicelet(object):
     ictalVolumeName = self.logic.REGISTERED_ICTAL_VOLUME_NAME    
     basalIctalMaskName = self.logic.BASAL_ICTAL_MASK_NAME  
     self.layoutWidget.setLayout(self.customLayoutGridView3x3)  
-    self.logic.compareBasalIctalMask(basalVolumeName, ictalVolumeName, basalIctalMaskName )    
+    self.logic.compareBasalIctalMask(basalVolumeName, ictalVolumeName, basalIctalMaskName )   
+    slicer.util.resetSliceViews() 
    
    #--------------------------------------------------------------------------------------------- 
   def onRegisterBasalToMRIButtonClicked(self):    
     if self.logic.registerBasalToMRI():
+      self.compareBasalIctalMRIButton.setEnabled(self.logic.IsBasalMRIRegistered)  
       self.onCompareBasalIctalMRIButtonClicked() 
   
   #------------------------------------------------------------------------------------------------------------------
   
+  def onStep2_RegistrationCollapsibleButtonClicked(self, collapsed):
+    if collapsed == False:
+      self.registerIctalToBasalButton.setEnabled(self.logic.IsBasalVolume and self.logic.IsIctalVolume)
+      self.registerBasalToMRIButton.setEnabled(self.logic.IsBasalVolume and self.logic.IsMRIVolume)    
+      self.computeBasalAndIctalMaskButton.setEnabled(self.logic.IsBasalIctalRegistered)
+      self.checkBasalAndIctalMaskButton.setEnabled(self.logic.IsBasalIctalMaskComputed)
+      self.compareBasalIctalMRIButton.setEnabled(self.logic.IsBasalMRIRegistered)
+      
+  #-----------------------------------------------------------------------------------
+  
+  def onStep3_fociDetectionCollapsibleButtonClicked(self, collapsed):    
+    if collapsed == False:
+      self.SISCOMDetectionButton.setEnabled(self.logic.IsBasalIctalMaskComputed)
+      self.stdDevSISCOMSlider.setEnabled(self.logic.IsBasalIctalMaskComputed)    
+      self.aContrarioDetectionButton.setEnabled(self.logic.IsBasalIctalMaskComputed)  
+          
   def onStep3A_SISCOMDetectionCollapsibleButtonClicked(self, collapsed):
-    if collapsed == True:
-      print "SISCOM is collapsed!"
-    else: 
+    if collapsed == False:
       if (self.backgroundVolumeNode is not None) and (self.SISCOMForegroundVolumeNode is not None):
         self.showActivations(self.backgroundVolumeNode, self.SISCOMForegroundVolumeNode) 
     
   def onStep3B_AContrarioDetectionCollapsibleButtonClicked(self, collapsed):
-    if collapsed == True:
-      print "AContrario is collapsed!"
-    else:
+    if collapsed == False: 
       if (self.backgroundVolumeNode is not None) and (self.aContrarioForegroundVolumeNode is not None):
         self.showActivations(self.backgroundVolumeNode, self.aContrarioForegroundVolumeNode) 
                       
@@ -506,6 +525,9 @@ class EpileptogenicFocusDetectionSlicelet(object):
       
       self.backgroundVolumeNode = backgroundVolumeNode
       self.SISCOMForegroundVolumeNode = foregroundVolumeNode
+      
+      self.compareDetectionsButton.setEnabled(self.logic.IsSISCOMOutput and self.aContrarioDetection.IsAContrarioOutput)
+     
   
   #---------------------------------------------------------------------------------------
   def onStdDevSISCOMSliderClicked(self, value): 
@@ -530,8 +552,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
 #     foregroundVolumeNode = nfaOutputVolumeNode
 #     self.showActivations(backgroundVolumeNode, foregroundVolumeNode)
 
-    import EpileptogenicFocusDetectionLogic.AContrarioLogic as acl
-    self.aContrarioDetection = acl.AContrarioDetection()
+    self.aContrarioDetection.getInputDataFromScene()
     self.aContrarioDetection.runAContrario()  
     mriVolumeNode = slicer.util.getNode(self.logic.MRI_VOLUME_NAME)
     if mriVolumeNode is not None:
@@ -544,6 +565,8 @@ class EpileptogenicFocusDetectionSlicelet(object):
     
     self.backgroundVolumeNode = backgroundVolumeNode
     self.aContrarioForegroundVolumeNode = foregroundVolumeNode
+    
+    self.compareDetectionsButton.setEnabled(self.logic.IsSISCOMOutput and self.aContrarioDetection.IsAContrarioOutput)
       
       
   def onCompareDetectionsButtonClicked(self):
@@ -551,7 +574,8 @@ class EpileptogenicFocusDetectionSlicelet(object):
     aContrarioVolumeNode = slicer.util.getNode(self.aContrarioDetection.ACONTRARIO_OUTPUT)
     subtractionOutputVolumeNode = slicer.util.getNode(self.logic.ICTAL_BASAL_SUBTRACTION)  
     self.layoutWidget.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutThreeOverThreeView)  
-    self.logic.compareAContrarioSISCOM(subtractionOutputVolumeNode.GetName(), aContrarioVolumeNode.GetName(), mriVolumeNode.GetName())      
+    self.logic.compareAContrarioSISCOM(subtractionOutputVolumeNode.GetName(), aContrarioVolumeNode.GetName(), mriVolumeNode.GetName())     
+    slicer.util.resetSliceViews() 
   #----------------------------------------------------------------------------------------------
   def showActivations(self,backgroundVolumeNode,foregroundVolumeNode):
     # Set the background volume 
@@ -577,7 +601,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
     yellowNode.SetSliceVisible(True)
     
     self.layoutWidget.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutConventionalView)  
-    
+    slicer.util.resetSliceViews()
   #-----------------------------------------------------------------------------------------------    
   #
   # Event handler functions
