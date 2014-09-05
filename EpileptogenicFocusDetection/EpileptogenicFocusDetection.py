@@ -3,6 +3,7 @@ import unittest
 import numpy
 from __main__ import vtk, qt, ctk, slicer
 import EpileptogenicFocusDetectionLogic
+import threading, time
 
 #
 # EpileptogenicFocusDetectionSliceletWidget
@@ -97,6 +98,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.setup_Step2_Registration()
     self.setup_Step3_FociDetection()
     
+    
     #creates a new layout
     self.customLayoutGridView3x3 = 1033
     self.logic.customCompareLayout(3,3,self.customLayoutGridView3x3)
@@ -113,7 +115,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.cleanUp()
       
   def cleanUp(self):
-    print('Cleaning up')  
+    print('Cleaning up')   
     
   # Disconnect all connections made to the slicelet to enable the garbage collector to destruct the slicelet object on quit
   def disconnect(self):  
@@ -334,6 +336,20 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.aContrarioDetectionButton.name = "aContrarioDetectionButton"
     self.aContrarioDetectionButton.setEnabled(False)
     self.step3B_AContrarioDetectionCollapsibleButtonLayout.addRow('Foci detection: ', self.aContrarioDetectionButton)
+    
+    #
+    # Status and Progress
+    #
+    self.currentStatusLabel = qt.QLabel("Idle")
+    self.step3B_AContrarioDetectionCollapsibleButtonLayout.addRow('Status',self.currentStatusLabel)
+
+    self.progress = qt.QProgressBar()
+    self.progress.setRange(0,1000)
+    self.progress.setValue(0)
+    self.progress.hide()
+    self.progress.setMinimum(0)
+    self.progress.setMaximum(0)
+    self.step3B_AContrarioDetectionCollapsibleButtonLayout.addRow(self.progress)
 
 
     # Step 3/C): Compare detections
@@ -430,7 +446,18 @@ class EpileptogenicFocusDetectionSlicelet(object):
     ictalVolumeName = self.logic.REGISTERED_ICTAL_VOLUME_NAME    
     registeredIctalNode = slicer.util.getNode(ictalVolumeName)
     if registeredIctalNode is not None:
-      self.logic.generateMask(basalVolumeNode,registeredIctalNode,0.4,1) 
+      self.info = qt.QDialog()
+      self.infoLayout = qt.QVBoxLayout()
+      self.info.setLayout(self.infoLayout)
+      self.label = qt.QLabel("Generating mask. Please wait...")
+      self.infoLayout.addWidget(self.label)
+      l = threading.Thread(target=self.logic.generateMask, args=(basalVolumeNode,registeredIctalNode,0.4,1, ))
+      l.start()
+      self.info.show()
+      while (self.logic.IsBasalIctalMaskComputed == False):
+        slicer.app.processEvents()   
+      #self.logic.runGenerateMask(basalVolumeNode,registeredIctalNode,0.4,1)
+      self.info.hide() 
       self.logic.displayVolume(self.logic.BASAL_ICTAL_MASK_NAME)
       self.checkBasalAndIctalMaskButton.setEnabled(self.logic.IsBasalIctalMaskComputed)
     else:
@@ -552,8 +579,21 @@ class EpileptogenicFocusDetectionSlicelet(object):
 #     foregroundVolumeNode = nfaOutputVolumeNode
 #     self.showActivations(backgroundVolumeNode, foregroundVolumeNode)
 
+    self.aContrarioDetectionButton.setEnabled(False)
     self.aContrarioDetection.getInputDataFromScene()
-    self.aContrarioDetection.runAContrario()  
+    
+    l = threading.Thread(target=self.aContrarioDetection.runAContrario)
+    l.start()  
+    self.progress.show()  
+    while (self.aContrarioDetection.IsAContrarioOutput == False):
+      time.sleep(0.3)  
+      self.currentStatusLabel.setText(self.aContrarioDetection.userMessage)    
+      slicer.app.processEvents()   
+    self.progress.hide()
+    self.currentStatusLabel.setText('Idle')
+      
+      
+    #self.aContrarioDetection.runAContrario()  
     mriVolumeNode = slicer.util.getNode(self.logic.MRI_VOLUME_NAME)
     if mriVolumeNode is not None:
       backgroundVolumeNode = mriVolumeNode
@@ -567,7 +607,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.aContrarioForegroundVolumeNode = foregroundVolumeNode
     
     self.compareDetectionsButton.setEnabled(self.logic.IsSISCOMOutput and self.aContrarioDetection.IsAContrarioOutput)
-      
+    self.aContrarioDetectionButton.setEnabled(True)  
       
   def onCompareDetectionsButtonClicked(self):
     mriVolumeNode = slicer.util.getNode(self.logic.MRI_VOLUME_NAME)  

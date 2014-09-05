@@ -31,7 +31,7 @@ class AContrarioDetection:
         
         self.customLayoutGridView3x3 = 23
         self.IsAContrarioOutput = False
-        
+        self.userMessage=""
         pass
     
     
@@ -157,6 +157,7 @@ class AContrarioDetection:
         #ic=self.ic[0:64,0:64,0:64].copy()
         #inter=self.inter[0:64,0:64,0:64].copy()
         
+        self.userMessage="Running a-contrario..."
         ic=self.ic
         inter=self.inter
         [spots_pos, nfaValues_pos, spots_neg, nfaValues_neg ] = self.acontrario_detection(ic, inter, debug=False)
@@ -164,6 +165,8 @@ class AContrarioDetection:
         print "max nfa pos = " + str(nfaValues_pos.max())
         print "min nfa neg = " + str(nfaValues_neg.min())
         print "max nfa neg = " + str(nfaValues_neg.max())
+        
+        self.userMessage="Running a-contrario: Generating output"
         
         basalVolumeNode = slicer.util.getNode(self.BASAL_VOLUME_NAME)    
         #see if there is a previous node
@@ -453,6 +456,7 @@ class AContrarioDetection:
         rc2 = scales_out[esc,2];
         
         # Local test
+        self.userMessage= "Scale %d Performing local test..." % esc
         print 'Performing local test...'
         [ pfaL_Pos, T_eff, Ntest , pfaL_Neg] = self.acontrario_local(ldif,mask,ra1,rb1,rc1,ra2,rb2,rc2,grid_step);
         
@@ -467,7 +471,7 @@ class AContrarioDetection:
         
        
         
-                       
+        self.userMessage=  "Scale %d: Performing global test..." % esc               
         # Global test
         print 'Performing global test...'
         [pfaG_Pos, pfaG_Neg] = self.acontrario_global(dif,mask,T_eff,ra1,rb1,rc1);
@@ -709,6 +713,7 @@ class AContrarioDetection:
             i=II[n]; j=JJ[n]; k=KK[n];
             if np.mod(n,3000)==0 :
                 print 'Processing: ', n , 'of', NN
+                self.userMessage = 'Performing local test (Processing: %d of %d)' % (n, NN)
 #        for i in range(0,n):
 #            print 'Processing: ', i , 'of', n 
 #            for j in range(0,p):
@@ -1084,6 +1089,7 @@ class AContrarioDetection:
         inter[inter<0]=1
         
         # Generate the brain mask.
+        self.userMessage="Running a-contrario: Generating the brain mask"
         #mask = create_mask(ic,inter,scales_in(2,1),scales_in(2,2),scales_in(2,3));
         #ra=scales_in[1,0]; rb= scales_in[1,1]; rc=scales_in[1,2] #TODO
         ra=scales_in[1,0];rb=scales_in[1,1];rc=scales_in[1,2];
@@ -1099,6 +1105,7 @@ class AContrarioDetection:
         
         
         # Normalize the scans to have relative photon counts.
+        self.userMessage="Running a-contrario: Normalizing the scans to have relative photon counts"
         ic, inter = self.normalization(ic,inter,mask);
         
         if self.pushImages:
@@ -1126,6 +1133,7 @@ class AContrarioDetection:
         lin[(mask>0) & (inter==0)] = 0;
         
         # Compute the sustraction images.
+        self.userMessage="Running a-contrario: Computing the sustraction images"
         dif = ic - inter;
         ldif = lic - lin;
         
@@ -1142,15 +1150,18 @@ class AContrarioDetection:
         # Make tests for each scale.
         #
         #disp(['Processing scale = 1 of ' num2str(total_esc)]);
+        self.userMessage= 'Running a-contrario: Processing scale = 1 of ' + str(total_esc)
         print 'Processing scale = 1 of ',  total_esc
         [nfaPos_1,nfaNeg_1] = self.acontrario_det_scale(0,scales_in,scales_out,ldif,dif,mask,grid_step);
         
         #disp(['Processing scale = 2 of ' num2str(total_esc)]);
+        self.userMessage= 'Running a-contrario: Processing scale = 2 of ' + str(total_esc)
         print 'Processing scale = 2 of ',  total_esc, ' COMENTADO'
         [nfaPos_2,nfaNeg_2] = self.acontrario_det_scale(1,scales_in,scales_out,ldif,dif,mask,grid_step);
         #nfa_Pos2=nfaPos_1.copy() #TODO
         
         #disp(['Processing scale = 3 of ' num2str(total_esc)]);
+        self.userMessage= 'Running a-contrario: Processing scale = 3 of ' + str(total_esc)
         print 'Processing scale = 3 of ',  total_esc, ' COMENTADO'
         [nfaPos_3, nfaNeg_3] = self.acontrario_det_scale(2,scales_in,scales_out,ldif,dif,mask,grid_step);
         #nfa_Pos3=nfaPos_1.copy() #TODO
@@ -1169,7 +1180,7 @@ class AContrarioDetection:
             self.saveNode('acontrario_detection___nfaNeg_3___python','acontrario_detection___nfaNeg_3___python.img')
         
         
-        
+        self.userMessage= 'Running a-contrario: Creating activation images'
         # Draw a spot of the correct scale in each meaningful detection. The
         # correct scale is that of minimun NFA.
         [ spots_pos, nfaValues_pos ] = self.spots_nfa(nfaPos_1, nfaPos_2, nfaPos_3, scales_in);

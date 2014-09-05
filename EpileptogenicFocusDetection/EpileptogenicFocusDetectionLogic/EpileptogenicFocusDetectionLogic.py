@@ -7,6 +7,7 @@ from vtk.util import numpy_support
 import numpy as np
 import SimpleITK as sitk
 import sitkUtils
+import threading
         
 
 #
@@ -51,7 +52,6 @@ class EpileptogenicFocusDetectionLogic:
     self.IsBasalMRIRegistered = False
     self.IsSISCOMOutput = False
     
-
   # ---------------------------------------------------------------------------
   def displayVolume(self, volumeName):
     # automatically select the volume to display
@@ -432,8 +432,23 @@ class EpileptogenicFocusDetectionLogic:
     ictalVolumeNode = slicer.util.getNode("rP1_Ic")  
     self.generateMask(basalVolumeNode,ictalVolumeNode,0.4,1)  
  
+  def runGenerateMask(self,basalVolumeNode, ictalVolumeNode, threshold, zmax):
+    self.userMessage = "Generating mask. Please wait..."
+    self.info = qt.QDialog()
+    self.infoLayout = qt.QVBoxLayout()
+    self.info.setLayout(self.infoLayout)
+    self.label = qt.QLabel(self.userMessage,self.info)
+    self.infoLayout.addWidget(self.label)
+    l = threading.Thread(target=self.generateMask, args=(basalVolumeNode,ictalVolumeNode,threshold,zmax, ))
+    l.start()
+    self.info.show()
+    while (self.IsBasalIctalMaskComputed == False):
+      slicer.app.processEvents()   
+    return     
+    self.info.hide()
   # ---------------------------------------------------------------------------
-  def generateMask(self,basalVolumeNode, ictalVolumeNode, threshold, zmax):    
+  def generateMask(self,basalVolumeNode, ictalVolumeNode, threshold, zmax):   
+    self.userMessage = "Generating mask. Please wait..."     
     basalArray = slicer.util.array(basalVolumeNode.GetName())
     ictalArray = slicer.util.array(ictalVolumeNode.GetName())
     self.normalizedBasalArray = np.zeros(basalArray.shape,np.double)
@@ -444,8 +459,8 @@ class EpileptogenicFocusDetectionLogic:
     maxBasal = basalArray.max() 
     maxIctal = ictalArray.max()     
     basal_mask=basalArray>threshold*maxBasal
-    ictal_mask=ictalArray>threshold*maxIctal   
-    slicer.app.processEvents()
+    ictal_mask=ictalArray>threshold*maxIctal
+    slicer.app.processEvents()   
     # Compute mean and std in pixels inside the mask
     basal_mask_GreaterThanZeroIndices = (basal_mask > 0).nonzero();
     mean_basal_inside_mask = basalArray[basal_mask_GreaterThanZeroIndices].mean()
@@ -453,7 +468,6 @@ class EpileptogenicFocusDetectionLogic:
     ictal_mask_GreaterThanZeroIndices = (ictal_mask > 0).nonzero();
     mean_ictal_inside_mask = ictalArray[ictal_mask_GreaterThanZeroIndices].mean()
     std_ictal_inside_mask = ictalArray[ictal_mask_GreaterThanZeroIndices].std()
-    slicer.app.processEvents()
     # Compute the z scores maps
     basal_map = np.zeros(basalArray.shape,np.bool) # maps initialized to zero
     ictal_map = np.zeros(basalArray.shape,np.bool)
@@ -465,7 +479,6 @@ class EpileptogenicFocusDetectionLogic:
     basal_map = basal_map * basal_mask  # Remove the z<z_max outside the mask
     ictal_map[z_ictal_below_zmax]=1
     ictal_map = ictal_map * ictal_mask  # Remove the z<z_max outside the mask
-    slicer.app.processEvents()
     # Compute the intersection of the maps
     intersection_map = basal_map * ictal_map
     intersection_region = intersection_map>0 
@@ -475,7 +488,7 @@ class EpileptogenicFocusDetectionLogic:
     print "ictal normalization factor= " + str(ictal_normalization_factor)
     self.normalizedBasalArray[:] = np.double(basalArray)/basal_normalization_factor
     self.normalizedIctalArray[:] = np.double(ictalArray)/ictal_normalization_factor
-    slicer.app.processEvents()
+    
     
     max_norm_basal =  self.normalizedBasalArray.max()    
     max_norm_ictal =  self.normalizedIctalArray.max()  
@@ -483,18 +496,18 @@ class EpileptogenicFocusDetectionLogic:
     print "max ictal normalized= " + str( max_norm_ictal)
     basalMask = self.normalizedBasalArray>0.4* max_norm_basal
     ictalMask = self.normalizedIctalArray>0.4* max_norm_ictal
-    slicer.app.processEvents()
+    
     # Create the masks
     mask = basalMask * ictalMask
     volLogic=slicer.modules.volumes.logic()
     maskVolumeNode = volLogic.CloneVolume(basalVolumeNode,self.BASAL_ICTAL_MASK_NAME)
+    slicer.app.processEvents()
     maskArray = slicer.util.array(maskVolumeNode.GetName())
     maskArray[:]=mask
     maskVolumeNode.GetImageData().Modified()
     maskVolumeNode.SetLabelMap(True)  
     dn=maskVolumeNode.GetDisplayNode()
     dn.SetAndObserveColorNodeID('vtkMRMLColorTableNodeLabels')
-    slicer.app.processEvents()
     
     # Fill the holes in the mask
     rawMask=slicer.util.array(self.BASAL_ICTAL_MASK_NAME)
@@ -502,7 +515,6 @@ class EpileptogenicFocusDetectionLogic:
     maskArray = slicer.util.array(maskVolumeNode.GetName())
     maskArray[:]=mask
     maskVolumeNode.GetImageData().Modified()
-    slicer.app.processEvents()
     self.IsBasalIctalMaskComputed = True
     return self.IsBasalIctalMaskComputed
     
