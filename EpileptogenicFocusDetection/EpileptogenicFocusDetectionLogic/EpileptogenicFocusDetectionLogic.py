@@ -139,6 +139,7 @@ class EpileptogenicFocusDetectionLogic:
     greenNode.SetSliceVisible(displayIn3D)
     yellowNode=slicer.util.getNode("vtkMRMLSliceNodeYellow")
     yellowNode.SetSliceVisible(displayIn3D)
+    
   # ---------------------------------------------------------------------------  
   def compareBasalIctalMRI(self, basalVolumeName, ictalVolumeName, mriVolumeName):
     self.displayVolumeInSlice(basalVolumeName, 'Compare1', 'Axial')

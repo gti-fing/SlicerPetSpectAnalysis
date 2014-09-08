@@ -456,7 +456,7 @@ class AContrarioDetection:
         rc2 = scales_out[esc,2];
         
         # Local test
-        self.userMessage= "Scale %d Performing local test..." % esc
+        self.userMessage= "Scale %d: Performing local test..." % esc
         print 'Performing local test...'
         [ pfaL_Pos, T_eff, Ntest , pfaL_Neg] = self.acontrario_local(ldif,mask,ra1,rb1,rc1,ra2,rb2,rc2,grid_step);
         
@@ -703,7 +703,7 @@ class AContrarioDetection:
         
         
         
-        
+        previousMessage = self.userMessage # contains the number of scale
         # For each pixel, if it is a valid test pixel: 
         # 1) T(i,j,k) = 1  and 2) the kernel of radii (ra1,rb1,rc1) centered at the
         #                         pixel is completely inside the mask.
@@ -713,7 +713,7 @@ class AContrarioDetection:
             i=II[n]; j=JJ[n]; k=KK[n];
             if np.mod(n,3000)==0 :
                 print 'Processing: ', n , 'of', NN
-                self.userMessage = 'Performing local test (Processing: %d of %d)' % (n, NN)
+                self.userMessage = previousMessage + '(Processing: %d of %d)' % (n, NN)
 #        for i in range(0,n):
 #            print 'Processing: ', i , 'of', n 
 #            for j in range(0,p):
@@ -1180,10 +1180,12 @@ class AContrarioDetection:
             self.saveNode('acontrario_detection___nfaNeg_3___python','acontrario_detection___nfaNeg_3___python.img')
         
         
-        self.userMessage= 'Running a-contrario: Creating activation images'
+        
         # Draw a spot of the correct scale in each meaningful detection. The
         # correct scale is that of minimun NFA.
+        self.userMessage= 'Running a-contrario: Creating positive activation image'
         [ spots_pos, nfaValues_pos ] = self.spots_nfa(nfaPos_1, nfaPos_2, nfaPos_3, scales_in);
+        self.userMessage= 'Running a-contrario: Creating negative activation image'
         [ spots_neg, nfaValues_neg ] = self.spots_nfa(nfaNeg_1, nfaNeg_2, nfaNeg_3, scales_in);
         
         if self.pushImages:

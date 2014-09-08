@@ -341,7 +341,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
     # Status and Progress
     #
     self.currentStatusLabel = qt.QLabel("Idle")
-    self.step3B_AContrarioDetectionCollapsibleButtonLayout.addRow('Status',self.currentStatusLabel)
+    self.step3B_AContrarioDetectionCollapsibleButtonLayout.addRow('Status:',self.currentStatusLabel)
 
     self.progress = qt.QProgressBar()
     self.progress.setRange(0,1000)
@@ -455,7 +455,8 @@ class EpileptogenicFocusDetectionSlicelet(object):
       l.start()
       self.info.show()
       while (self.logic.IsBasalIctalMaskComputed == False):
-        slicer.app.processEvents()   
+        slicer.app.processEvents()  
+        time.sleep(1) 
       #self.logic.runGenerateMask(basalVolumeNode,registeredIctalNode,0.4,1)
       self.info.hide() 
       self.logic.displayVolume(self.logic.BASAL_ICTAL_MASK_NAME)
