@@ -106,6 +106,8 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.customLayoutGridView2x3 = 1023
     self.logic.customCompareLayout(2,3,self.customLayoutGridView2x3)
     
+    self.logic.findEpilepsyDataInScene();
+    self.aContrarioDetection.findAContrarioDataInScene();
 
     if widgetClass:
       self.widget = widgetClass(self.parent)
@@ -124,25 +126,31 @@ class EpileptogenicFocusDetectionSlicelet(object):
     # Step 0
     self.step0_viewSelectorComboBox.disconnect('activated(int)', self.onViewSelect)  
     # Step 1
+    self.step1_loadStudiesCollapsibleButton.disconnect('contentsCollapsed (bool)',self.onStep1_loadStudiesCollapsibleButtonClicked)
     self.activeVolumeNodeSelector.disconnect("nodeActivated (vtkMRMLNode*)", self.onActiveVolumeNodeSelectorClicked)
     self.loadBasalVolumeButton.disconnect("clicked()",self.onLoadBasalVolumeButtonClicked)
     self.loadIctalVolumeButton.disconnect("clicked()",self.onLoadIctalVolumeButtonClicked)
     self.loadMRIVolumeButton.disconnect("clicked()",self.onLoadMRIVolumeButtonClicked)
     # Step 2
+    self.step2_RegistrationCollapsibleButton.disconnect('contentsCollapsed (bool)',self.onStep2_RegistrationCollapsibleButtonClicked)
     self.compareBasalIctalMRIButton.disconnect('clicked()', self.onCompareBasalIctalMRIButtonClicked)
     self.registerIctalToBasalButton.disconnect('clicked()', self.onRegisterIctalToBasalButtonClicked)
     self.computeBasalAndIctalMaskButton.disconnect("clicked()",self.onComputeBasalAndIctalMaskButtonClicked)
     self.checkBasalAndIctalMaskButton.disconnect("clicked()",self.onCheckBasalAndIctalMaskButtonClicked)
     self.registerBasalToMRIButton.disconnect('clicked()', self.onRegisterBasalToMRIButtonClicked)
     # Step 3    
-    self.step3_fociDetectionCollapsibleButton.connect('contentsCollapsed (bool)',self.onStep3_fociDetectionCollapsibleButtonClicked)
+    self.step3_fociDetectionCollapsibleButton.disconnect('contentsCollapsed (bool)',self.onStep3_fociDetectionCollapsibleButtonClicked)
     self.step3A_SISCOMDetectionCollapsibleButton.disconnect('contentsCollapsed (bool)',self.onStep3A_SISCOMDetectionCollapsibleButtonClicked)
     self.step3B_AContrarioDetectionCollapsibleButton.disconnect('contentsCollapsed (bool)',self.onStep3B_AContrarioDetectionCollapsibleButtonClicked)
+    self.step3C_CompareDetectionsCollapsibleButton.disconnect('contentsCollapsed (bool)',self.onStep3C_CompareDetectionsCollapsibleButtonClicked)
     self.aContrarioDetectionButton.disconnect('clicked()', self.onAContrarioDetectionButtonClicked)
     self.SISCOMDetectionButton.disconnect('clicked()', self.onSubtractionDetectionButtonClicked)
     self.compareDetectionsButton.disconnect('clicked()', self.onCompareDetectionsButtonClicked)
     self.stdDevSISCOMSlider.disconnect('valueChanged(double)', self.onStdDevSISCOMSliderClicked)
-
+    self.siscomOverlayButton.disconnect('clicked()', self.onSiscomOverlayButtonClicked)
+    self.siscomHideOverlayButton.disconnect('clicked()', self.onSiscomHideOverlayButtonClicked)
+    self.aContrarioOverlayButton.disconnect('clicked()', self.onAContrarioOverlayButtonClicked)
+    self.aContrarioHideOverlayButton.disconnect('clicked()', self.onAContrarioHideOverlayButtonClicked)
 
   def setup_Step0_LayoutSelection(self):
     # Layout selection step
@@ -227,6 +235,8 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.loadBasalVolumeButton.connect("clicked()",self.onLoadBasalVolumeButtonClicked)
     self.loadIctalVolumeButton.connect("clicked()",self.onLoadIctalVolumeButtonClicked)
     self.loadMRIVolumeButton.connect("clicked()",self.onLoadMRIVolumeButtonClicked)
+    
+    self.step1_loadStudiesCollapsibleButton.connect('contentsCollapsed (bool)',self.onStep1_loadStudiesCollapsibleButtonClicked)
 
  
 
@@ -316,8 +326,28 @@ class EpileptogenicFocusDetectionSlicelet(object):
     
     #self.step3A_SISCOMDetectionCollapsibleButtonLayout.addRow('Visualization threshold: ', self.thresholdSISCOMFrame)
     self.step3A_SISCOMDetectionCollapsibleButtonLayout.addRow('Standard deviations threshold: ', self.stdDevSISCOMSlider)
-
-
+    
+    
+    # Overlay Widget
+    self.siscomOverlayFrame = qt.QFrame()
+    overlayLayout = qt.QHBoxLayout()
+    self.siscomOverlayButton = qt.QPushButton("Generate overlay")
+    self.siscomOverlayButton.setEnabled(False)
+    self.siscomOverlayFrame.setLayout(overlayLayout)
+    rowsLabel=qt.QLabel("Rows:")
+    colsLabel=qt.QLabel("Cols:") 
+    self.siscomRowsText=qt.QLineEdit("3")
+    self.siscomColsText=qt.QLineEdit("3")
+    self.siscomHideOverlayButton = qt.QPushButton("Hide")
+    self.siscomHideOverlayButton.setEnabled(False)
+    overlayLayout.addWidget(self.siscomOverlayButton)
+    overlayLayout.addWidget(rowsLabel)
+    overlayLayout.addWidget(self.siscomRowsText)
+    overlayLayout.addWidget(colsLabel) 
+    overlayLayout.addWidget(self.siscomColsText)
+    overlayLayout.addWidget(self.siscomHideOverlayButton)
+    
+    self.step3A_SISCOMDetectionCollapsibleButtonLayout.addRow(self.siscomOverlayFrame)
    
     # Step 3/B): AContrario detection
     self.step3B_AContrarioDetectionCollapsibleButton = ctk.ctkCollapsibleButton()
@@ -350,6 +380,28 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.progress.setMinimum(0)
     self.progress.setMaximum(0)
     self.step3B_AContrarioDetectionCollapsibleButtonLayout.addRow(self.progress)
+    
+    self.aContrarioOverlayFrame = qt.QFrame()
+    overlayLayout = qt.QHBoxLayout()
+    self.aContrarioOverlayButton = qt.QPushButton("Generate overlay")
+    self.aContrarioOverlayButton.setEnabled(False)
+    self.aContrarioOverlayFrame.setLayout(overlayLayout)
+    rowsLabel=qt.QLabel("Rows:")
+    colsLabel=qt.QLabel("Cols:") 
+    self.aContrarioRowsText=qt.QLineEdit("3")
+    self.aContrarioColsText=qt.QLineEdit("3")
+    self.aContrarioHideOverlayButton = qt.QPushButton("Hide")
+    self.aContrarioHideOverlayButton.setEnabled(False)
+    overlayLayout.addWidget(self.aContrarioOverlayButton)
+    overlayLayout.addWidget(rowsLabel)
+    overlayLayout.addWidget(self.aContrarioRowsText)
+    overlayLayout.addWidget(colsLabel) 
+    overlayLayout.addWidget(self.aContrarioColsText)
+    overlayLayout.addWidget(self.aContrarioHideOverlayButton)
+     
+    self.step3B_AContrarioDetectionCollapsibleButtonLayout.addRow(self.aContrarioOverlayFrame)
+    
+    #self.step3B_AContrarioDetectionCollapsibleButtonLayout.addRow('Overlay: ', self.overlayFrame)
 
 
     # Step 3/C): Compare detections
@@ -379,15 +431,20 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.step3_fociDetectionCollapsibleButton.connect('contentsCollapsed (bool)',self.onStep3_fociDetectionCollapsibleButtonClicked)
     self.step3A_SISCOMDetectionCollapsibleButton.connect('contentsCollapsed (bool)',self.onStep3A_SISCOMDetectionCollapsibleButtonClicked)
     self.step3B_AContrarioDetectionCollapsibleButton.connect('contentsCollapsed (bool)',self.onStep3B_AContrarioDetectionCollapsibleButtonClicked)
+    self.step3C_CompareDetectionsCollapsibleButton.connect('contentsCollapsed (bool)',self.onStep3C_CompareDetectionsCollapsibleButtonClicked)
     self.aContrarioDetectionButton.connect('clicked()', self.onAContrarioDetectionButtonClicked)
     self.SISCOMDetectionButton.connect('clicked()', self.onSubtractionDetectionButtonClicked)
     self.compareDetectionsButton.connect('clicked()', self.onCompareDetectionsButtonClicked)
     self.stdDevSISCOMSlider.connect('valueChanged(double)', self.onStdDevSISCOMSliderClicked)
+    self.siscomOverlayButton.connect('clicked()', self.onSiscomOverlayButtonClicked)
+    self.siscomHideOverlayButton.connect('clicked()', self.onSiscomHideOverlayButtonClicked)
+    self.aContrarioOverlayButton.connect('clicked()', self.onAContrarioOverlayButtonClicked)
+    self.aContrarioHideOverlayButton.connect('clicked()', self.onAContrarioHideOverlayButtonClicked)
 
     # Open OBI fiducial selection panel when step is first opened
     self.step3A_SISCOMDetectionCollapsibleButton.setProperty('collapsed', False)
 
-
+          
 
   ### Callbacks  #####
   ## STEP 1 #######
@@ -482,32 +539,58 @@ class EpileptogenicFocusDetectionSlicelet(object):
   
   #------------------------------------------------------------------------------------------------------------------
   
+  def onStep1_loadStudiesCollapsibleButtonClicked(self, collapsed):
+    self.onSiscomHideOverlayButtonClicked()
+  
+  #------------------------------------------------------------------------------------------------------------------
+  
   def onStep2_RegistrationCollapsibleButtonClicked(self, collapsed):
+    self.onSiscomHideOverlayButtonClicked()
     if collapsed == False:
       self.registerIctalToBasalButton.setEnabled(self.logic.IsBasalVolume and self.logic.IsIctalVolume)
       self.registerBasalToMRIButton.setEnabled(self.logic.IsBasalVolume and self.logic.IsMRIVolume)    
       self.computeBasalAndIctalMaskButton.setEnabled(self.logic.IsBasalIctalRegistered)
       self.checkBasalAndIctalMaskButton.setEnabled(self.logic.IsBasalIctalMaskComputed)
       self.compareBasalIctalMRIButton.setEnabled(self.logic.IsBasalMRIRegistered)
+
       
   #-----------------------------------------------------------------------------------
   
-  def onStep3_fociDetectionCollapsibleButtonClicked(self, collapsed):    
+  def onStep3_fociDetectionCollapsibleButtonClicked(self, collapsed):   
+    self.onSiscomHideOverlayButtonClicked()
+    self.siscomOverlayButton.setEnabled(self.logic.IsSISCOMOutput)
     if collapsed == False:
       self.SISCOMDetectionButton.setEnabled(self.logic.IsBasalIctalMaskComputed)
       self.stdDevSISCOMSlider.setEnabled(self.logic.IsBasalIctalMaskComputed)    
-      self.aContrarioDetectionButton.setEnabled(self.logic.IsBasalIctalMaskComputed)  
+      self.aContrarioDetectionButton.setEnabled(self.logic.IsBasalIctalMaskComputed)
+      if self.logic.IsSISCOMOutput == True:
+        subtractionOutputVolumeNode = slicer.util.getNode(self.logic.ICTAL_BASAL_SUBTRACTION)  
+        maskVolumeNode = slicer.util.getNode(self.logic.BASAL_ICTAL_MASK_NAME)
+        if (subtractionOutputVolumeNode is not None) and (maskVolumeNode is not None):
+          self.computeStdDevSISCOMSliderBounds(subtractionOutputVolumeNode,maskVolumeNode )
+ 
           
   def onStep3A_SISCOMDetectionCollapsibleButtonClicked(self, collapsed):
-    if collapsed == False:
+    self.onSiscomHideOverlayButtonClicked()
+    self.siscomOverlayButton.setEnabled(self.logic.IsSISCOMOutput)
+    if collapsed == False:  
       if (self.backgroundVolumeNode is not None) and (self.SISCOMForegroundVolumeNode is not None):
         self.showActivations(self.backgroundVolumeNode, self.SISCOMForegroundVolumeNode) 
+
+
     
   def onStep3B_AContrarioDetectionCollapsibleButtonClicked(self, collapsed):
-    if collapsed == False: 
+    self.onAContrarioHideOverlayButtonClicked() 
+    self.aContrarioOverlayButton.setEnabled(self.aContrarioDetection.IsAContrarioOutput)
+    if collapsed == False:   
       if (self.backgroundVolumeNode is not None) and (self.aContrarioForegroundVolumeNode is not None):
         self.showActivations(self.backgroundVolumeNode, self.aContrarioForegroundVolumeNode) 
-                      
+
+  def onStep3C_CompareDetectionsCollapsibleButtonClicked(self, collapsed):     
+    if collapsed == False: 
+      self.compareDetectionsButton.setEnabled(self.logic.IsSISCOMOutput and self.aContrarioDetection.IsAContrarioOutput)      
+        
+                           
   #------------------------------------------------------------------------------------------------------------------      
   def onSubtractionDetectionButtonClicked(self): 
 #     basalVolumeNode = slicer.util.getNode(self.logic.BASAL_VOLUME_NAME)
@@ -515,6 +598,9 @@ class EpileptogenicFocusDetectionSlicelet(object):
 #     subtractionOutputVolumeNode=slicer.vtkMRMLScalarVolumeNode()
 #     slicer.mrmlScene.AddNode(subtractionOutputVolumeNode)
 #     subtractionOutputVolumeNode.SetName("Ictal-Basal Subtraction") 
+    if self.logic.normalizedBasalArray is None:  # the normalizedBasalArray is generated when the mask is created
+      self.onComputeBasalAndIctalMaskButtonClicked()
+    
     result =self.logic.subtractImages()  
     #result= self.logic.subtractImages(ictalVolumeNode,basalVolumeNode, subtractionOutputVolumeNode) 
     if result==True:
@@ -523,17 +609,11 @@ class EpileptogenicFocusDetectionSlicelet(object):
       if maskVolumeNode is not None:
         maskVolumeNode.SetLabelMap(True)  
         self.logic.applyMaskToVolume(subtractionOutputVolumeNode,maskVolumeNode,subtractionOutputVolumeNode)  
+      self.computeStdDevSISCOMSliderBounds(subtractionOutputVolumeNode,maskVolumeNode)
+      # creates a new colormap
       data=slicer.util.array(subtractionOutputVolumeNode.GetName())
       minimumValue = numpy.int(data.min())
-      maximumValue = numpy.int(data.max())      
-      
-      stddev=data.std()
-      print 'standard deviation = ' + str(stddev)
-      stddevInside_mask = self.logic.computeStdDevInsideMask(subtractionOutputVolumeNode, maskVolumeNode)
-      print 'standard deviation inside mask = ' + str(stddevInside_mask)
-      self.stdDevSISCOMSlider.minimum = 0;
-      self.stdDevSISCOMSlider.maximum = maximumValue / stddevInside_mask; 
-      # creates a new colormap
+      maximumValue = numpy.int(data.max())  
       self.logic.createFociVisualizationColorMap(minimumValue,maximumValue)
       colorMapNode=slicer.util.getNode("FociDetectionColorMap")
       dnode=subtractionOutputVolumeNode.GetDisplayNode()
@@ -554,10 +634,20 @@ class EpileptogenicFocusDetectionSlicelet(object):
       self.backgroundVolumeNode = backgroundVolumeNode
       self.SISCOMForegroundVolumeNode = foregroundVolumeNode
       
-      self.compareDetectionsButton.setEnabled(self.logic.IsSISCOMOutput and self.aContrarioDetection.IsAContrarioOutput)
-     
-  
+      self.siscomOverlayButton.setEnabled(self.logic.IsSISCOMOutput)
   #---------------------------------------------------------------------------------------
+  
+  def computeStdDevSISCOMSliderBounds(self, subtractionOutputVolumeNode,maskVolumeNode ):
+    data=slicer.util.array(subtractionOutputVolumeNode.GetName())
+    maximumValue = numpy.int(data.max())          
+    stddev=data.std()
+    print 'standard deviation = ' + str(stddev)
+    stddevInside_mask = self.logic.computeStdDevInsideMask(subtractionOutputVolumeNode, maskVolumeNode)
+    print 'standard deviation inside mask = ' + str(stddevInside_mask)
+    self.stdDevSISCOMSlider.minimum = 0;
+    self.stdDevSISCOMSlider.maximum = maximumValue / stddevInside_mask;      
+    
+    
   def onStdDevSISCOMSliderClicked(self, value): 
     subtractionOutputVolumeNode = slicer.util.getNode(self.logic.ICTAL_BASAL_SUBTRACTION)    
     maskVolumeNode= slicer.util.getNode(self.logic.BASAL_ICTAL_MASK_NAME)
@@ -569,7 +659,41 @@ class EpileptogenicFocusDetectionSlicelet(object):
     positiveValuesToHide = numpy.int(value*stddevInside_mask)
     self.logic.showDifferencesBiggerThanStdThreshold(minimumValue, maximumValue, negativeValuesToHide, positiveValuesToHide)  
     slicer.app.processEvents()
-     
+  
+  #---------------------------------------------------------------------------------------------------------------
+  def onSiscomOverlayButtonClicked (self):
+    rows = self.siscomRowsText.text 
+    cols = self.siscomColsText.text
+    if (rows.isnumeric() and cols.isnumeric()):
+      rows = int(rows)
+      cols = int(cols)
+      self.generateOverlay(rows, cols)   
+      self.layoutWidget.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutOneUpRedSliceView) 
+      self.siscomHideOverlayButton.setEnabled(True)
+  #---------------------------------------------------------------------------------------------------------------  
+   
+  def onSiscomHideOverlayButtonClicked(self):
+    self.generateOverlay(1, 1)  
+    self.layoutWidget.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutConventionalView)   
+    self.siscomHideOverlayButton.setEnabled(False)       
+    
+  #---------------------------------------------------------------------------------------------------------------
+  def onAContrarioOverlayButtonClicked (self):
+    rows = self.aContrarioRowsText.text  
+    cols = self.aContrarioColsText.text
+    if (rows.isnumeric() and cols.isnumeric()):
+      rows = int(rows)
+      cols = int(cols)
+      self.generateOverlay(rows, cols) 
+      self.layoutWidget.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutOneUpRedSliceView)      
+      self.aContrarioHideOverlayButton.setEnabled(True)
+  #---------------------------------------------------------------------------------------------------------------  
+  
+  def onAContrarioHideOverlayButtonClicked(self):
+    self.generateOverlay(1, 1)  
+    self.layoutWidget.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutConventionalView)   
+    self.aContrarioHideOverlayButton.setEnabled(False)  
+                   
   #---------------------------------------------------------------------------------------------------------------     
   def onAContrarioDetectionButtonClicked(self):   
 #     basalVolumeNode = slicer.util.getNode(self.logic.BASAL_VOLUME_NAME)
@@ -607,8 +731,8 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.backgroundVolumeNode = backgroundVolumeNode
     self.aContrarioForegroundVolumeNode = foregroundVolumeNode
     
-    self.compareDetectionsButton.setEnabled(self.logic.IsSISCOMOutput and self.aContrarioDetection.IsAContrarioOutput)
     self.aContrarioDetectionButton.setEnabled(True)  
+    self.aContrarioOverlayButton.setEnabled(self.aContrarioDetection.IsAContrarioOutput)
       
   def onCompareDetectionsButtonClicked(self):
     mriVolumeNode = slicer.util.getNode(self.logic.MRI_VOLUME_NAME)  
@@ -617,6 +741,13 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.layoutWidget.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutThreeOverThreeView)  
     self.logic.compareAContrarioSISCOM(subtractionOutputVolumeNode.GetName(), aContrarioVolumeNode.GetName(), mriVolumeNode.GetName())     
     slicer.util.resetSliceViews() 
+  
+  #----------------------------------------------------------------------------------------------
+  
+  def generateOverlay(self,rows, cols):
+     redNode=slicer.util.getNode("vtkMRMLSliceNodeRed")
+     redNode.SetLayoutGrid(rows,cols)
+       
   #----------------------------------------------------------------------------------------------
   def showActivations(self,backgroundVolumeNode,foregroundVolumeNode):
     # Set the background volume 

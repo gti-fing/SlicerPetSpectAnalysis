@@ -38,6 +38,7 @@ class EpileptogenicFocusDetectionLogic:
     
     self.ICTAL_TO_BASAL_REGISTRATION_TRANSFORM_NAME = 'ictalToBasalTransform'
     self.BASAL_TO_MRI_REGISTRATION_TRANSFORM_NAME = 'basalToMRITransform'
+    self.BASAL_TO_MRI_VOLUME_NAME = 'basalVolume_mriVolume'
     
     self.ICTAL_BASAL_SUBTRACTION = 'Ictal-Basal Subtraction'
     
@@ -347,9 +348,12 @@ class EpileptogenicFocusDetectionLogic:
       parameters["linearTransform"] = registrationTransformNode.GetID()
       parameters["initializeTransformMode"] = "useCenterOfHeadAlign"
       
-      outputVolumeNode = slicer.vtkMRMLScalarVolumeNode()
-      slicer.mrmlScene.AddNode(outputVolumeNode)
-      outputVolumeNode.SetName(movingVolumeNode.GetName()+"_"+fixedVolumeNode.GetName())
+      outputVolumeName = movingVolumeNode.GetName()+"_"+fixedVolumeNode.GetName();
+      outputVolumeNode = slicer.util.getNode(outputVolumeName)
+      if outputVolumeNode is None:
+        outputVolumeNode = slicer.vtkMRMLScalarVolumeNode()
+        slicer.mrmlScene.AddNode(outputVolumeNode)
+        outputVolumeNode.SetName(outputVolumeName)
       parameters["outputVolume"] = outputVolumeNode.GetID()
       brainsfit = slicer.modules.brainsfit
       
@@ -500,8 +504,10 @@ class EpileptogenicFocusDetectionLogic:
     
     # Create the masks
     mask = basalMask * ictalMask
-    volLogic=slicer.modules.volumes.logic()
-    maskVolumeNode = volLogic.CloneVolume(basalVolumeNode,self.BASAL_ICTAL_MASK_NAME)
+    maskVolumeNode = slicer.util.getNode(self.BASAL_ICTAL_MASK_NAME)
+    if maskVolumeNode is None:
+      volLogic=slicer.modules.volumes.logic()
+      maskVolumeNode = volLogic.CloneVolume(basalVolumeNode,self.BASAL_ICTAL_MASK_NAME)
     slicer.app.processEvents()
     maskArray = slicer.util.array(maskVolumeNode.GetName())
     maskArray[:]=mask
@@ -897,8 +903,63 @@ class EpileptogenicFocusDetectionLogic:
       layoutNode.SetLayoutDescription(customLayoutNumber, compareViewGrid)
     else:
       layoutNode.AddLayoutDescription(customLayoutNumber, compareViewGrid)
+      
+      
 
-
+  def findEpilepsyDataInScene(self):
+    node = slicer.util.getNode(self.BASAL_VOLUME_NAME)
+    if node is not None:
+        self.IsBasalVolume = True;
+    node = slicer.util.getNode(self.ICTAL_VOLUME_NAME)
+    if node is not None:
+        self.IsIctalVolume = True;    
+    node = slicer.util.getNode(self.MRI_VOLUME_NAME)
+    if node is not None:
+        self.IsMRIVolume = True;
+    node = slicer.util.getNode(self.REGISTERED_ICTAL_VOLUME_NAME)       
+    if node is not None:
+        self.IsBasalIctalRegistered = True;    
+    node = slicer.util.getNode(self.BASAL_ICTAL_MASK_NAME)
+    if node is not None:
+        self.IsBasalIctalMaskComputed = True;      
+    node = slicer.util.getNode(self.BASAL_TO_MRI_VOLUME_NAME  )
+    if node is not None:
+        self.IsBasalMRIRegistered = True;            
+    node = slicer.util.getNode(self.ICTAL_BASAL_SUBTRACTION  )
+    if node is not None:
+        self.IsSISCOMOutput= True;     
+          
+  
+  
+  def cleanEpilepsyDataFromScene(self):
+    node = slicer.util.getNode(self.BASAL_VOLUME_NAME)  
+    if node is not None:
+        slicer.mrmlScene.RemoveNode(node.GetID())  
+        self.IsBasalVolume = False;
+    node = slicer.util.getNode(self.ICTAL_VOLUME_NAME)
+    if node is not None:
+        slicer.mrmlScene.RemoveNode(node.GetID())  
+        self.IsIctalVolume = False;    
+    node = slicer.util.getNode(self.MRI_VOLUME_NAME)
+    if node is not None:
+        slicer.mrmlScene.RemoveNode(node.GetID())  
+        self.IsMRIVolume = False;    
+    node = slicer.util.getNode(self.REGISTERED_ICTAL_VOLUME_NAME)  
+    if node is not None:
+        slicer.mrmlScene.RemoveNode(node.GetID())  
+        self.IsBasalIctalRegistered = False;
+    node = slicer.util.getNode(self.BASAL_ICTAL_MASK_NAME)
+    if node is not None:
+        slicer.mrmlScene.RemoveNode(node.GetID())  
+        self.IsBasalIctalMaskComputed = False;    
+    node = slicer.util.getNode(self.BASAL_TO_MRI_VOLUME_NAME)
+    if node is not None:
+        slicer.mrmlScene.RemoveNode(node.GetID())  
+        self.IsBasalMRIRegistered = False;    
+    node = slicer.util.getNode(self.ICTAL_BASAL_SUBTRACTION)
+    if node is not None:
+        slicer.mrmlScene.RemoveNode(node.GetID())  
+        self.IsSISCOMOutput = False;       
   # ---------------------------------------------------------------------------
   # Utility functions
   # ---------------------------------------------------------------------------

@@ -1519,6 +1519,11 @@ class AContrarioDetection:
   #
   
   
+    def findAContrarioDataInScene(self):
+      node = slicer.util.getNode(self.ACONTRARIO_OUTPUT);
+      if node is not None:
+        self.IsAContrarioOutput = True        
+  
   # tomado de EditUtil.py
     def getCompositeNode(self, layoutName='Red'):
         """ use the Red slice composite node to define the active volumes """
@@ -1527,6 +1532,8 @@ class AContrarioDetection:
             compNode = slicer.mrmlScene.GetNthNodeByClass(n, 'vtkMRMLSliceCompositeNode')
             if compNode.GetLayoutName() == layoutName:
                 return compNode
+            
+            
     def getSliceNode(self, sliceName='Red'):
         """ use the Red slice composite node to define the active volumes """
         count = slicer.mrmlScene.GetNumberOfNodesByClass('vtkMRMLSliceNode')
@@ -1544,7 +1551,7 @@ class AContrarioDetection:
         else:
             print("displayVolumeInSlice failed")
         if not sliceNode == None:
-            sliceNode.SetOrientation(sliceOrientation)
+            sliceNode.SetOrientation(sliceOrientation)      
             
     def compareMasks(self):
         self.displayVolumeInSlice(self.BASAL_VOLUME_NAME, 'Compare1', 'Axial')
