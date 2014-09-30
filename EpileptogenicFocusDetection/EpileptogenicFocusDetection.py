@@ -75,12 +75,14 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.step1_loadStudiesCollapsibleButton = ctk.ctkCollapsibleButton()
     self.step2_RegistrationCollapsibleButton = ctk.ctkCollapsibleButton()
     self.step3_fociDetectionCollapsibleButton = ctk.ctkCollapsibleButton()
+    self.step4_saveResultsCollapsibleButton = ctk.ctkCollapsibleButton()
 
     self.collapsibleButtonsGroup = qt.QButtonGroup()
     self.collapsibleButtonsGroup.addButton(self.step0_layoutSelectionCollapsibleButton)
     self.collapsibleButtonsGroup.addButton(self.step1_loadStudiesCollapsibleButton)
     self.collapsibleButtonsGroup.addButton(self.step2_RegistrationCollapsibleButton)
     self.collapsibleButtonsGroup.addButton(self.step3_fociDetectionCollapsibleButton)
+    self.collapsibleButtonsGroup.addButton(self.step4_saveResultsCollapsibleButton)
 
     self.step0_layoutSelectionCollapsibleButton.setProperty('collapsed', False)
     
@@ -97,6 +99,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.setup_Step1_LoadStudies() 
     self.setup_Step2_Registration()
     self.setup_Step3_FociDetection()
+    self.setup_Step4_SaveResults()
     
     
     #creates a new layout
@@ -131,6 +134,8 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.loadBasalVolumeButton.disconnect("clicked()",self.onLoadBasalVolumeButtonClicked)
     self.loadIctalVolumeButton.disconnect("clicked()",self.onLoadIctalVolumeButtonClicked)
     self.loadMRIVolumeButton.disconnect("clicked()",self.onLoadMRIVolumeButtonClicked)
+    self.resetSceneButton.disconnect('clicked()',self.onResetSceneButtonClicked)
+    self.loadSceneButton.disconnect('clicked()',self.onLoadSceneButtonClicked)
     # Step 2
     self.step2_RegistrationCollapsibleButton.disconnect('contentsCollapsed (bool)',self.onStep2_RegistrationCollapsibleButtonClicked)
     self.compareBasalIctalMRIButton.disconnect('clicked()', self.onCompareBasalIctalMRIButtonClicked)
@@ -151,6 +156,8 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.siscomHideOverlayButton.disconnect('clicked()', self.onSiscomHideOverlayButtonClicked)
     self.aContrarioOverlayButton.disconnect('clicked()', self.onAContrarioOverlayButtonClicked)
     self.aContrarioHideOverlayButton.disconnect('clicked()', self.onAContrarioHideOverlayButtonClicked)
+    # Step 4
+    self.saveResultsButton.disconnect('clicked()',self.onSaveResultsButtonClicked)
 
   def setup_Step0_LayoutSelection(self):
     # Layout selection step
@@ -230,11 +237,21 @@ class EpileptogenicFocusDetectionSlicelet(object):
     
     visualizationLayout.addWidget(self.activeVolumeFrame)
     self.step1_loadStudiesCollapsibleButtonLayout.addWidget(self.visualizationFrame)
+    
+    
+    # Reset scene
+    self.resetSceneButton = qt.QPushButton("Reset Scene")
+    self.step1_loadStudiesCollapsibleButtonLayout.addRow("Reset Scene:",self.resetSceneButton)
+    # Load Scene
+    self.loadSceneButton = qt.QPushButton("Load Scene")
+    self.step1_loadStudiesCollapsibleButtonLayout.addRow("Load Scene:",self.loadSceneButton)
     # Connections
     self.activeVolumeNodeSelector.connect("nodeActivated (vtkMRMLNode*)", self.onActiveVolumeNodeSelectorClicked)
     self.loadBasalVolumeButton.connect("clicked()",self.onLoadBasalVolumeButtonClicked)
     self.loadIctalVolumeButton.connect("clicked()",self.onLoadIctalVolumeButtonClicked)
     self.loadMRIVolumeButton.connect("clicked()",self.onLoadMRIVolumeButtonClicked)
+    self.resetSceneButton.connect('clicked()',self.onResetSceneButtonClicked)
+    self.loadSceneButton.connect('clicked()',self.onLoadSceneButtonClicked)
     
     self.step1_loadStudiesCollapsibleButton.connect('contentsCollapsed (bool)',self.onStep1_loadStudiesCollapsibleButtonClicked)
 
@@ -444,7 +461,22 @@ class EpileptogenicFocusDetectionSlicelet(object):
     # Open OBI fiducial selection panel when step is first opened
     self.step3A_SISCOMDetectionCollapsibleButton.setProperty('collapsed', False)
 
-          
+  
+  def setup_Step4_SaveResults(self):
+    # Step 1: Load studies panel
+    self.step4_saveResultsCollapsibleButton.setProperty('collapsedHeight', 4)
+    self.step4_saveResultsCollapsibleButton.text = "4. Save Results"
+    self.sliceletPanelLayout.addWidget(self.step4_saveResultsCollapsibleButton)
+    self.step4_saveResultsCollapsibleButtonLayout = qt.QFormLayout(self.step4_saveResultsCollapsibleButton)
+    self.step4_saveResultsCollapsibleButtonLayout.setContentsMargins(12,4,4,4)
+    self.step4_saveResultsCollapsibleButtonLayout.setSpacing(4)
+      
+    # Buttons to connect
+    self.saveResultsButton = qt.QPushButton("Save Scene")
+    # Add to the widget
+    self.step4_saveResultsCollapsibleButtonLayout.addRow("Save results:",self.saveResultsButton)          
+    
+    self.saveResultsButton.connect('clicked()',self.onSaveResultsButtonClicked)
 
   ### Callbacks  #####
   ## STEP 1 #######
@@ -476,8 +508,46 @@ class EpileptogenicFocusDetectionSlicelet(object):
       self.logic.displaySlicesIn3D()
       slicer.util.resetSliceViews()
       slicer.util.resetThreeDViews()
+  #------------------------------------------------------------------------------------------------
+  def onResetSceneButtonClicked(self):
+    replay=qt.QMessageBox.question(self.parent, 'Epileptogenic Focus Detection', 'Are you sure you want to start again?', qt.QMessageBox.Ok , qt.QMessageBox.Cancel)   
+    if replay==qt.QMessageBox.Cancel:
+      return     
+    elif replay==qt.QMessageBox.Ok: 
+      self.logic.cleanEpilepsyDataFromScene()   
+      self.aContrarioDetection.cleanAContrarioDataInScene();
       
-  #------------------------------------------------------------------------------------------------        
+      
+  #------------------------------------------------------------------------------------------------    
+  def onLoadSceneButtonClicked(self):
+    from os import listdir
+    print "Loading the scene"    
+    slicerScene = qt.QFileDialog.getOpenFileName(self.parent,"Select a slicer scene")  
+    print 'Slicer scene filename = ' + slicerScene
+    slicer.util.loadScene(slicerScene)
+    self.logic.findEpilepsyDataInScene();
+    self.aContrarioDetection.findAContrarioDataInScene();
+    
+    subtractionOutputVolumeNode = slicer.util.getNode(self.logic.ICTAL_BASAL_SUBTRACTION)
+    if subtractionOutputVolumeNode is not None:
+      mriVolumeNode = slicer.util.getNode(self.logic.MRI_VOLUME_NAME)
+      if mriVolumeNode is not None:
+        backgroundVolumeNode = mriVolumeNode
+      else:
+        ictalVolumeNode = slicer.util.getNode(self.logic.REGISTERED_ICTAL_VOLUME_NAME)
+        if ictalVolumeNode is not None:
+          backgroundVolumeNode = ictalVolumeNode
+      foregroundVolumeNode = subtractionOutputVolumeNode
+      self.backgroundVolumeNode = backgroundVolumeNode
+      self.SISCOMForegroundVolumeNode = foregroundVolumeNode  
+      self.showActivations(backgroundVolumeNode, foregroundVolumeNode, 0)
+      
+    aContrarioOutput = slicer.util.getNode(self.aContrarioDetection.ACONTRARIO_OUTPUT)
+    if aContrarioOutput is not None:
+      self.aContrarioForegroundVolumeNode = aContrarioOutput   
+    
+    
+  #------------------------------------------------------------------------------------------------    
   ### STEP 2 #######
   def onCompareBasalIctalMRIButtonClicked(self):
     self.layoutWidget.setLayout(self.customLayoutGridView3x3)  
@@ -568,6 +638,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
         maskVolumeNode = slicer.util.getNode(self.logic.BASAL_ICTAL_MASK_NAME)
         if (subtractionOutputVolumeNode is not None) and (maskVolumeNode is not None):
           self.computeStdDevSISCOMSliderBounds(subtractionOutputVolumeNode,maskVolumeNode )
+          self.showActivations(self.backgroundVolumeNode, self.SISCOMForegroundVolumeNode) 
  
           
   def onStep3A_SISCOMDetectionCollapsibleButtonClicked(self, collapsed):
@@ -611,15 +682,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
         self.logic.applyMaskToVolume(subtractionOutputVolumeNode,maskVolumeNode,subtractionOutputVolumeNode)  
       self.computeStdDevSISCOMSliderBounds(subtractionOutputVolumeNode,maskVolumeNode)
       # creates a new colormap
-      data=slicer.util.array(subtractionOutputVolumeNode.GetName())
-      minimumValue = numpy.int(data.min())
-      maximumValue = numpy.int(data.max())  
-      self.logic.createFociVisualizationColorMap(minimumValue,maximumValue)
-      colorMapNode=slicer.util.getNode("FociDetectionColorMap")
-      dnode=subtractionOutputVolumeNode.GetDisplayNode()
-      dnode.SetAutoWindowLevel(0)
-      dnode.SetWindowLevelMinMax(minimumValue,maximumValue)
-      dnode.SetAndObserveColorNodeID(colorMapNode.GetID())
+      self.logic.configureColorMap(subtractionOutputVolumeNode)
       
       mriVolumeNode = slicer.util.getNode(self.logic.MRI_VOLUME_NAME)
       if mriVolumeNode is not None:
@@ -749,31 +812,38 @@ class EpileptogenicFocusDetectionSlicelet(object):
      redNode.SetLayoutGrid(rows,cols)
        
   #----------------------------------------------------------------------------------------------
-  def showActivations(self,backgroundVolumeNode,foregroundVolumeNode):
+  def showActivations(self,backgroundVolumeNode,foregroundVolumeNode, opacity=1):
     # Set the background volume 
     redWidgetCompNode = slicer.mrmlScene.GetNodeByID("vtkMRMLSliceCompositeNodeRed")
     redWidgetCompNode.SetBackgroundVolumeID(backgroundVolumeNode.GetID())
     redWidgetCompNode.SetForegroundVolumeID(foregroundVolumeNode.GetID())
-    redWidgetCompNode.SetForegroundOpacity(1)
+    redWidgetCompNode.SetForegroundOpacity(opacity)
     redNode=slicer.util.getNode("vtkMRMLSliceNodeRed")
     redNode.SetSliceVisible(True)
     
     greenWidgetCompNode = slicer.mrmlScene.GetNodeByID("vtkMRMLSliceCompositeNodeGreen")
     greenWidgetCompNode.SetBackgroundVolumeID(backgroundVolumeNode.GetID())
     greenWidgetCompNode.SetForegroundVolumeID(foregroundVolumeNode.GetID())
-    greenWidgetCompNode.SetForegroundOpacity(1)
+    greenWidgetCompNode.SetForegroundOpacity(opacity)
     greenNode=slicer.util.getNode("vtkMRMLSliceNodeGreen")
     greenNode.SetSliceVisible(True)
     
     yellowWidgetCompNode = slicer.mrmlScene.GetNodeByID("vtkMRMLSliceCompositeNodeYellow")
     yellowWidgetCompNode.SetBackgroundVolumeID(backgroundVolumeNode.GetID())
     yellowWidgetCompNode.SetForegroundVolumeID(foregroundVolumeNode.GetID())
-    yellowWidgetCompNode.SetForegroundOpacity(1)  
-    yellowNode=slicer.util.getNode("vtkMRMLSliceNodeGreen")
+    yellowWidgetCompNode.SetForegroundOpacity(opacity)  
+    yellowNode=slicer.util.getNode("vtkMRMLSliceNodeYellow")
     yellowNode.SetSliceVisible(True)
     
     self.layoutWidget.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutConventionalView)  
     slicer.util.resetSliceViews()
+  
+  #----------------------------------------------------------------------------------------------
+  def onSaveResultsButtonClicked(self):
+    #sceneDirectory = qt.QFileDialog.getExistingDirectory(self.parent,"Select directory")  
+    #dstFile = sceneDirectory + '/EpilepsyScene.mrb'   #os.path.join(sceneDirectory, 'EpilepsyScene')
+    #slicer.util.saveScene(dstFile)    
+    slicer.app.ioManager().openSaveDataDialog()  
   #-----------------------------------------------------------------------------------------------    
   #
   # Event handler functions

@@ -235,6 +235,7 @@ class EpileptogenicFocusDetectionLogic:
     ret = self.registerVolumes(self.BASAL_VOLUME_NAME, self.BASAL_TRANSFORM_NAME, self.ICTAL_VOLUME_NAME, self.ICTAL_TRANSFORM_NAME, self.ICTAL_TO_BASAL_REGISTRATION_TRANSFORM_NAME)
     self.IsBasalIctalRegistered = ret
     return ret
+
   # ---------------------------------------------------------------------------
   def registerBasalToMRI(self):
     ret = self.registerVolumes(self.MRI_VOLUME_NAME, self.MRI_TRANSFORM_NAME, self.BASAL_VOLUME_NAME, self.BASAL_TRANSFORM_NAME, self.BASAL_TO_MRI_REGISTRATION_TRANSFORM_NAME)
@@ -354,6 +355,7 @@ class EpileptogenicFocusDetectionLogic:
         outputVolumeNode = slicer.vtkMRMLScalarVolumeNode()
         slicer.mrmlScene.AddNode(outputVolumeNode)
         outputVolumeNode.SetName(outputVolumeName)
+
       parameters["outputVolume"] = outputVolumeNode.GetID()
       brainsfit = slicer.modules.brainsfit
       
@@ -436,7 +438,8 @@ class EpileptogenicFocusDetectionLogic:
     basalVolumeNode = slicer.util.getNode("P1_B")   
     ictalVolumeNode = slicer.util.getNode("rP1_Ic")  
     self.generateMask(basalVolumeNode,ictalVolumeNode,0.4,1)  
- 
+    
+  # ---------------------------------------------------------------------------------
   def runGenerateMask(self,basalVolumeNode, ictalVolumeNode, threshold, zmax):
     self.userMessage = "Generating mask. Please wait..."
     self.info = qt.QDialog()
@@ -451,6 +454,8 @@ class EpileptogenicFocusDetectionLogic:
       slicer.app.processEvents()   
     return     
     self.info.hide()
+    
+    
   # ---------------------------------------------------------------------------
   def generateMask(self,basalVolumeNode, ictalVolumeNode, threshold, zmax):   
     self.userMessage = "Generating mask. Please wait..."     
@@ -505,7 +510,7 @@ class EpileptogenicFocusDetectionLogic:
     # Create the masks
     mask = basalMask * ictalMask
     maskVolumeNode = slicer.util.getNode(self.BASAL_ICTAL_MASK_NAME)
-    if maskVolumeNode is None:
+    if maskVolumeNode == None:
       volLogic=slicer.modules.volumes.logic()
       maskVolumeNode = volLogic.CloneVolume(basalVolumeNode,self.BASAL_ICTAL_MASK_NAME)
     slicer.app.processEvents()
@@ -539,19 +544,22 @@ class EpileptogenicFocusDetectionLogic:
     sitkClosed = sitk.BinaryMorphologicalOpening(sitkArray, radius)
     resultArray = sitk.GetArrayFromImage(sitkClosed)        
     return resultArray
-#--------------------------------------------------------------------------------
+ #--------------------------------------------------------------------------------
   def binaryConnectedComponents (self, array):
     sitkArray = sitk.GetImageFromArray(array)
     sitkLabels = sitk.ConnectedComponent(sitkArray, fullyConnected = True )
     resultArray = sitk.GetArrayFromImage(sitkLabels)        
     return resultArray
+
  #--------------------------------------------------------------------------------
   def pushArrayToSlicer(self, array, nodeName='ArrayPushedFromCode', compositeView=0, overWrite=False):
     sitkImage = sitk.GetImageFromArray(array)
     sitkUtils.PushToSlicer(sitkImage, nodeName, compositeView, overWrite)
+    
   #--------------------------------------------------------------------------------    
   def getArrayFromSlicer(self,nodeName):
     return (slicer.util.array(nodeName))
+
   #--------------------------------------------------------------------------------  
   def runTestRellenarMascara(self):
     matlabMask = self.getArrayFromSlicer('ictal_mask')
@@ -798,7 +806,7 @@ class EpileptogenicFocusDetectionLogic:
     self.IsSISCOMOutput = True
     return True
     
-    
+    # ---------------------------------------------------------------------------  
   def castVolumeNodeToShort(self, volumeNode):
    imageData = volumeNode.GetImageData()  
    cast=vtk.vtkImageCast()
@@ -902,10 +910,9 @@ class EpileptogenicFocusDetectionLogic:
     if layoutNode.IsLayoutDescription(customLayoutNumber):
       layoutNode.SetLayoutDescription(customLayoutNumber, compareViewGrid)
     else:
-      layoutNode.AddLayoutDescription(customLayoutNumber, compareViewGrid)
+      layoutNode.AddLayoutDescription(customLayoutNumber, compareViewGrid)   
       
-      
-
+  # ---------------------------------------------------------------------------
   def findEpilepsyDataInScene(self):
     node = slicer.util.getNode(self.BASAL_VOLUME_NAME)
     if node is not None:
@@ -928,37 +935,38 @@ class EpileptogenicFocusDetectionLogic:
     node = slicer.util.getNode(self.ICTAL_BASAL_SUBTRACTION  )
     if node is not None:
         self.IsSISCOMOutput= True;     
+        self.configureColorMap(node)
           
   
-  
+    # ---------------------------------------------------------------------------
   def cleanEpilepsyDataFromScene(self):
     node = slicer.util.getNode(self.BASAL_VOLUME_NAME)  
     if node is not None:
-        slicer.mrmlScene.RemoveNode(node.GetID())  
+        slicer.mrmlScene.RemoveNode(node)  
         self.IsBasalVolume = False;
     node = slicer.util.getNode(self.ICTAL_VOLUME_NAME)
     if node is not None:
-        slicer.mrmlScene.RemoveNode(node.GetID())  
+        slicer.mrmlScene.RemoveNode(node)  
         self.IsIctalVolume = False;    
     node = slicer.util.getNode(self.MRI_VOLUME_NAME)
     if node is not None:
-        slicer.mrmlScene.RemoveNode(node.GetID())  
+        slicer.mrmlScene.RemoveNode(node)  
         self.IsMRIVolume = False;    
     node = slicer.util.getNode(self.REGISTERED_ICTAL_VOLUME_NAME)  
     if node is not None:
-        slicer.mrmlScene.RemoveNode(node.GetID())  
+        slicer.mrmlScene.RemoveNode(node)  
         self.IsBasalIctalRegistered = False;
     node = slicer.util.getNode(self.BASAL_ICTAL_MASK_NAME)
     if node is not None:
-        slicer.mrmlScene.RemoveNode(node.GetID())  
+        slicer.mrmlScene.RemoveNode(node)  
         self.IsBasalIctalMaskComputed = False;    
     node = slicer.util.getNode(self.BASAL_TO_MRI_VOLUME_NAME)
     if node is not None:
-        slicer.mrmlScene.RemoveNode(node.GetID())  
+        slicer.mrmlScene.RemoveNode(node)  
         self.IsBasalMRIRegistered = False;    
     node = slicer.util.getNode(self.ICTAL_BASAL_SUBTRACTION)
     if node is not None:
-        slicer.mrmlScene.RemoveNode(node.GetID())  
+        slicer.mrmlScene.RemoveNode(node)  
         self.IsSISCOMOutput = False;       
   # ---------------------------------------------------------------------------
   # Utility functions
@@ -980,7 +988,18 @@ class EpileptogenicFocusDetectionLogic:
     qt.QTimer.singleShot(msec, self.info.close)
     self.info.exec_()
     
-
+  def configureColorMap(self, subtractionOutputVolumeNode):
+    data=slicer.util.array(subtractionOutputVolumeNode.GetName())
+    minimumValue = np.int(data.min())
+    maximumValue = np.int(data.max())  
+    self.createFociVisualizationColorMap(minimumValue,maximumValue)
+    colorMapNode=slicer.util.getNode(self.FOCI_DETECTION_COLORMAP_NAME)
+    dnode=subtractionOutputVolumeNode.GetDisplayNode()
+    dnode.SetAutoWindowLevel(0)
+    dnode.SetWindowLevelMinMax(minimumValue,maximumValue)
+    dnode.SetAndObserveColorNodeID(colorMapNode.GetID())        
+      
+  # ---------------------------------------------------------------------------
   def createFociVisualizationColorMap(self,minimumValue,maximumValue):
     if (minimumValue<0):  
       numberOfCoolColors = -(minimumValue)
@@ -1053,7 +1072,7 @@ class EpileptogenicFocusDetectionLogic:
       print "hot color index = " + str(numberOfCoolColors + colorIndex)
     colorNode.SetOpacity(numberOfCoolColors,0);  
     ''' 
-             
+    # ---------------------------------------------------------------------------           
   def showDifferencesBiggerThanStdThreshold(self, minimumValue, maximumValue, negativeValuesToHide, positiveValuesToHide):
     if (minimumValue<0):  
       numberOfCoolColors = -(minimumValue)
