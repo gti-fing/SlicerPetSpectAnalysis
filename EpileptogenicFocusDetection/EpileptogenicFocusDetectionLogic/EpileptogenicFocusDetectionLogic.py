@@ -45,6 +45,9 @@ class EpileptogenicFocusDetectionLogic:
     self.FOCI_DETECTION_COLORMAP_NAME = "FociDetectionColorMap"
     self.FOCI_ACONTRARIO_DETECTION_COLORMAP_NAME = "AContrarioFociDetectionColorMap"
     
+    self.normalizedBasalArray = None
+    self.normalizedIctalArray = None
+    
     self.IsBasalVolume = False
     self.IsIctalVolume = False
     self.IsMRIVolume = False
