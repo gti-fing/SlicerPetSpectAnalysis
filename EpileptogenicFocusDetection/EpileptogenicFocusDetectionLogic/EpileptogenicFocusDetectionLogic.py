@@ -1103,3 +1103,11 @@ class EpileptogenicFocusDetectionLogic:
     for colorIndex in xrange(positiveValuesToHide+1,numberOfHotColors+1 ):  
       colorNode.SetOpacity(numberOfCoolColors + colorIndex,1);  
     
+    
+ #-----------------------------------------------------------------------------------------------------------------------
+  def isDouble(self,value):
+    try:
+      np.double(value)
+      return True
+    except ValueError:
+      return False   

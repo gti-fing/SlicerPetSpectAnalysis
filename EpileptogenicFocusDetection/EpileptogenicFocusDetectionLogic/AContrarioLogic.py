@@ -32,6 +32,20 @@ class AContrarioDetection:
         self.customLayoutGridView3x3 = 23
         self.IsAContrarioOutput = False
         self.userMessage=""
+        
+        # Parameters
+        self.numberOfScales = 3;
+        self.scales_in = np.array([[1, 2, 1], [2, 3, 1], [3, 4, 1]],np.uint32);
+        self.scales_out = np.array([[2, 3, 1],[3, 4, 1],[4, 5, 1]],np.uint32);
+        self.grid_step = 0.3; 
+        
+        self.M= 6   # parameter used when generating the mask
+                
+        self.rKernelNoiseGlobal = np.array([3,3,1])
+        self.epsilon_machine = 1e-323 # 
+        
+        self.rKernelNoiseLocal = np.array([2,2,1])
+        self.epsilonSpotsNFA = 1.0/3.0;
         pass
     
     
@@ -115,7 +129,7 @@ class AContrarioDetection:
 
     def runTestNegSpotsNfa(self):
         
-        scales_in = np.array([[1, 2, 1], [2, 3, 1], [3, 4, 1]],np.uint32);
+        scales_in = self.scales_in 
         
         nfaNeg_1 = self.getArrayFromSlicer('acontrario_detection___nfaNeg_1___python')
         nfaNeg_2 = self.getArrayFromSlicer('acontrario_detection___nfaNeg_2___python')
@@ -677,9 +691,9 @@ class AContrarioDetection:
         kernel_padded = np.zeros((2*ra2+1,2*rb2+1,2*rc2+1))
         kernel_padded[ra2-ra1:ra2+ra1+1,rb2-rb1:rb2+rb1+1,rc2-rc1:rc2+rc1+1]=kernel
         
-        rKernelNoise1 = 2;
-        rKernelNoise2 = 2;
-        rKernelNoise3 = 1;
+        rKernelNoise1 = self.rKernelNoiseLocal[0] #2;
+        rKernelNoise2 = self.rKernelNoiseLocal[1] #2;
+        rKernelNoise3 = self.rKernelNoiseLocal[2] #1;
         
         sizeMask = (2*ra2+1) * (2*rb2+1) * (2*rc2+1);
         sizeKernel = (2*ra1+1) * (2*rb1+1) * (2*rc1+1);
@@ -948,10 +962,10 @@ class AContrarioDetection:
         #                           Variable definition
         #==========================================================================
         [n,p,q] = dif.shape;
-        rKernelNoise1 = 3;
-        rKernelNoise2 = 3;
-        rKernelNoise3 = 1;
-        epsilon_machine = 1e-323;
+        rKernelNoise1 = self.rKernelNoiseGlobal[0]; # 3;
+        rKernelNoise2 = self.rKernelNoiseGlobal[1]; #3;
+        rKernelNoise3 = self.rKernelNoiseGlobal[2]; #1;
+        epsilon_machine = self.epsilon_machine;
         
         #==========================================================================
         #                           Main Function
@@ -1077,15 +1091,14 @@ class AContrarioDetection:
         #scales_out = [3 2 1;4 3 1;5 4 1];    # Scales for defining the corresponding neighbourhoods.
         #total_esc = size(scales_in,1);
         #grid_step = 0.3;        
-        scales_in = np.array([[2, 1, 1], [3, 2, 1], [4, 3, 1]],np.uint32);
-        scales_out = np.array([[3, 2, 1],[4, 3, 1],[5, 4, 1]],np.uint32);
+        #scales_in = np.array([[2, 1, 1], [3, 2, 1], [4, 3, 1]],np.uint32);
+        #scales_out = np.array([[3, 2, 1],[4, 3, 1],[5, 4, 1]],np.uint32);
         
         #para respetar la forma de la cabeza segun como se carga en slicer
-        scales_in = np.array([[1, 2, 1], [2, 3, 1], [3, 4, 1]],np.uint32);
-        scales_out = np.array([[2, 3, 1],[3, 4, 1],[4, 5, 1]],np.uint32);
-        total_esc = scales_in.shape[1];
-        grid_step = 0.3;  
-        
+        scales_in = self.scales_in 
+        scales_out = self.scales_out
+        total_esc = scales_in.shape[1]; 
+        grid_step = self.grid_step
         #==========================================================================
         #                           Main Program
         #==========================================================================
@@ -1231,7 +1244,7 @@ class AContrarioDetection:
         
         # Epsilon is set to 1/3 in order to obtain epsilon 1 in the complete test
         # (we are testing 3 scales).
-        epsilon = 1.0/3.0;
+        epsilon = self.epsilonSpotsNFA #1.0/3.0;
         
         nfa_spotsPos = np.zeros(nfaPos_1.shape);
         nfa_valsPos = np.ones(nfaPos_1.shape);
@@ -1444,7 +1457,7 @@ class AContrarioDetection:
         #    mean_in = mean2(in(ic.*in > 0));
         #    mask_aux = find(ic > mean_ic / M & in > mean_in / M);
         
-        M = 6;
+        M = self.M;
         
         ic=ic_.copy();
         inter=inter_.copy();
