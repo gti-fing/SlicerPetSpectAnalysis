@@ -729,7 +729,7 @@ class AContrarioDetection:
         
         
         
-        previousMessage = self.userMessage # contains the number of scale
+        scaleMessage = self.userMessage # contains the number of scale
         # For each pixel, if it is a valid test pixel: 
         # 1) T(i,j,k) = 1  and 2) the kernel of radii (ra1,rb1,rc1) centered at the
         #                         pixel is completely inside the mask.
@@ -739,7 +739,7 @@ class AContrarioDetection:
             i=II[n]; j=JJ[n]; k=KK[n];
             if np.mod(n,3000)==0 :
                 print 'Processing: ', n , 'of', NN
-                self.userMessage = previousMessage + '(Processing: %d of %d)' % (n, NN)
+                self.userMessage = scaleMessage + '(Processing: %d of %d)' % (n, NN)
 #        for i in range(0,n):
 #            print 'Processing: ', i , 'of', n 
 #            for j in range(0,p):

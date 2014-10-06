@@ -348,13 +348,15 @@ class EpileptogenicFocusDetectionSlicelet(object):
     # Overlay Widget
     self.siscomOverlayFrame = qt.QFrame()
     overlayLayout = qt.QHBoxLayout()
-    self.siscomOverlayButton = qt.QPushButton("Generate overlay")
+    self.siscomOverlayButton = qt.QPushButton("Generate")
     self.siscomOverlayButton.setEnabled(False)
     self.siscomOverlayFrame.setLayout(overlayLayout)
     rowsLabel=qt.QLabel("Rows:")
     colsLabel=qt.QLabel("Cols:") 
     self.siscomRowsText=qt.QLineEdit("3")
+    self.siscomRowsText.setFixedWidth(50)
     self.siscomColsText=qt.QLineEdit("3")
+    self.siscomColsText.setFixedWidth(50)
     self.siscomHideOverlayButton = qt.QPushButton("Hide")
     self.siscomHideOverlayButton.setEnabled(False)
     overlayLayout.addWidget(self.siscomOverlayButton)
@@ -390,13 +392,33 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.currentStatusLabel = qt.QLabel("Idle")
     self.step3B_AContrarioDetectionCollapsibleButtonLayout.addRow('Status:',self.currentStatusLabel)
 
-    self.progress = qt.QProgressBar()
-    self.progress.setRange(0,1000)
-    self.progress.setValue(0)
-    self.progress.hide()
-    self.progress.setMinimum(0)
-    self.progress.setMaximum(0)
-    self.step3B_AContrarioDetectionCollapsibleButtonLayout.addRow(self.progress)
+    
+    self.aContrarioProgressFrame = qt.QFrame()
+    self.aContrarioProgressFrame.setLayout(qt.QHBoxLayout())
+    self.aContrarioProgressLayout = self.aContrarioProgressFrame.layout()    
+    
+    self.aContrarioProgressBar = qt.QProgressBar()
+    self.aContrarioProgressBar.setRange(0,1000)
+    self.aContrarioProgressBar.setValue(0)
+    self.aContrarioProgressBar.show()
+    self.aContrarioProgressBar.setMinimum(0)
+    self.aContrarioProgressBar.setMaximum(0)
+    
+    self.cancelAContrarioButton = qt.QPushButton("Cancel") 
+    self.suspendAContrario = False
+    
+    self.aContrarioProgressLayout.addWidget(self.aContrarioProgressBar)
+    self.aContrarioProgressLayout.addWidget(self.cancelAContrarioButton)
+    self.aContrarioProgressFrame.hide()
+    
+    self.step3B_AContrarioDetectionCollapsibleButtonLayout.addRow(self.aContrarioProgressFrame)
+    
+
+    
+    
+
+    
+    
     
     self.aContrarioOverlayFrame = qt.QFrame()
     overlayLayout = qt.QHBoxLayout()
@@ -406,7 +428,9 @@ class EpileptogenicFocusDetectionSlicelet(object):
     rowsLabel=qt.QLabel("Rows:")
     colsLabel=qt.QLabel("Cols:") 
     self.aContrarioRowsText=qt.QLineEdit("3")
+    self.aContrarioRowsText.setFixedWidth(50)
     self.aContrarioColsText=qt.QLineEdit("3")
+    self.aContrarioColsText.setFixedWidth(50)
     self.aContrarioHideOverlayButton = qt.QPushButton("Hide")
     self.aContrarioHideOverlayButton.setEnabled(False)
     overlayLayout.addWidget(self.aContrarioOverlayButton)
@@ -497,6 +521,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.step3_fociDetectionCollapsibleButton.connect('contentsCollapsed (bool)',self.onStep3_fociDetectionCollapsibleButtonClicked)
     self.step3A_SISCOMDetectionCollapsibleButton.connect('contentsCollapsed (bool)',self.onStep3A_SISCOMDetectionCollapsibleButtonClicked)
     self.step3B_AContrarioDetectionCollapsibleButton.connect('contentsCollapsed (bool)',self.onStep3B_AContrarioDetectionCollapsibleButtonClicked)
+    self.cancelAContrarioButton.connect('clicked()', self.onCancelAContrarioButtonClicked)
     self.step3C_CompareDetectionsCollapsibleButton.connect('contentsCollapsed (bool)',self.onStep3C_CompareDetectionsCollapsibleButtonClicked)
     self.aContrarioDetectionButton.connect('clicked()', self.onAContrarioDetectionButtonClicked)
     self.SISCOMDetectionButton.connect('clicked()', self.onSubtractionDetectionButtonClicked)
@@ -628,6 +653,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
       self.label = qt.QLabel("Generating mask. Please wait...")
       self.infoLayout.addWidget(self.label)
       l = threading.Thread(target=self.logic.generateMask, args=(basalVolumeNode,registeredIctalNode,0.4,1, ))
+      l.setDaemon(True)
       l.start()
       self.info.show()
       while (self.logic.IsBasalIctalMaskComputed == False):
@@ -706,6 +732,9 @@ class EpileptogenicFocusDetectionSlicelet(object):
       if (self.backgroundVolumeNode is not None) and (self.aContrarioForegroundVolumeNode is not None):
         self.showActivations(self.backgroundVolumeNode, self.aContrarioForegroundVolumeNode) 
 
+  def onCancelAContrarioButtonClicked(self):
+    self.suspendAContrario = True
+      
   def onStep3C_CompareDetectionsCollapsibleButtonClicked(self, collapsed):     
     if collapsed == False: 
       self.compareDetectionsButton.setEnabled(self.logic.IsSISCOMOutput and self.aContrarioDetection.IsAContrarioOutput)      
@@ -833,11 +862,11 @@ class EpileptogenicFocusDetectionSlicelet(object):
   
     kernelGlobal =numpy.fromstring(self.rKernelNoiseGlobalLineEdit.text   , dtype=int, sep=',')
     if kernelGlobal.size != 3:
-      print('Three comma separeted values must be indicated in the global kernel radio parameter ')
+      print('Three comma separated values must be indicated in the global kernel radio parameter ')
     
     kernelLocal =numpy.fromstring(self.rKernelNoiseLocalLineEdit.text   , dtype=int, sep=',')
     if kernelLocal.size != 3:
-      print('Three comma separeted values must be indicated in the local kernel radio parameter ')
+      print('Three comma separated values must be indicated in the local kernel radio parameter ')
    
 
     epsilonMachine = self.epsilonMachineLineEdit.text
@@ -884,15 +913,21 @@ class EpileptogenicFocusDetectionSlicelet(object):
     
     
     l = threading.Thread(target=self.aContrarioDetection.runAContrario)
+    l.setDaemon(True)
     l.start()  
-    self.progress.show()  
-    while (self.aContrarioDetection.IsAContrarioOutput == False):
+    self.aContrarioProgressFrame.show()  
+    while ((self.aContrarioDetection.IsAContrarioOutput == False) and (self.suspendAContrario == False)):
       time.sleep(0.3)  
       self.currentStatusLabel.setText(self.aContrarioDetection.userMessage)    
-      slicer.app.processEvents()   
-    self.progress.hide()
+      slicer.app.processEvents()  
+     
+     
+    if self.suspendAContrario == True:
+      l._Thread__stop()   
+        
+    self.aContrarioProgressFrame.hide()
     self.currentStatusLabel.setText('Idle')
-      
+    self.suspendAContrario = False   
       
     #self.aContrarioDetection.runAContrario()  
     mriVolumeNode = slicer.util.getNode(self.logic.MRI_VOLUME_NAME)
@@ -902,10 +937,11 @@ class EpileptogenicFocusDetectionSlicelet(object):
       ictalVolumeNode = slicer.util.getNode(self.logic.REGISTERED_ICTAL_VOLUME_NAME)
       backgroundVolumeNode = ictalVolumeNode
     foregroundVolumeNode = slicer.util.getNode(self.aContrarioDetection.ACONTRARIO_OUTPUT)
-    self.showActivations(backgroundVolumeNode, foregroundVolumeNode)
     
-    self.backgroundVolumeNode = backgroundVolumeNode
-    self.aContrarioForegroundVolumeNode = foregroundVolumeNode
+    if((backgroundVolumeNode is not None) and (foregroundVolumeNode is not None) ):
+      self.showActivations(backgroundVolumeNode, foregroundVolumeNode)
+      self.backgroundVolumeNode = backgroundVolumeNode
+      self.aContrarioForegroundVolumeNode = foregroundVolumeNode
     
     self.aContrarioDetectionButton.setEnabled(True)  
     self.aContrarioOverlayButton.setEnabled(self.aContrarioDetection.IsAContrarioOutput)
@@ -922,7 +958,8 @@ class EpileptogenicFocusDetectionSlicelet(object):
   
   def generateOverlay(self,rows, cols):
      redNode=slicer.util.getNode("vtkMRMLSliceNodeRed")
-     redNode.SetLayoutGrid(rows,cols)
+     if ((redNode.GetLayoutGridRows()!=rows) or (redNode.GetLayoutGridColumns()!=cols)):
+       redNode.SetLayoutGrid(rows,cols)
        
   #----------------------------------------------------------------------------------------------
   def showActivations(self,backgroundVolumeNode,foregroundVolumeNode, opacity=1):

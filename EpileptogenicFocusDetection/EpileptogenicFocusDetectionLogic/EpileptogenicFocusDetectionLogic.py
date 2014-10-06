@@ -368,7 +368,7 @@ class EpileptogenicFocusDetectionLogic:
       
       waitCount = 0
       while cliBrainsFitRigidNode.GetStatusString() != 'Completed' and waitCount < 20:
-        self.delayDisplay( "Register " + movingVolumeNode.GetName()+ "to " + fixedVolumeNode.GetName() +  "... %d" % waitCount )
+        self.delayDisplay( "Register " + movingVolumeNode.GetName()+ " to " + fixedVolumeNode.GetName() +  "... %d" % waitCount )
         waitCount += 1
       self.delayDisplay("Register " + movingVolumeNode.GetName()+ "to " + fixedVolumeNode.GetName() + " finished")
       qt.QApplication.restoreOverrideCursor()
