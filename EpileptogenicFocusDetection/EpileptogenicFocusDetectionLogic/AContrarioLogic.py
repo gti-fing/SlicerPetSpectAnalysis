@@ -35,14 +35,14 @@ class AContrarioDetection:
         
         # Parameters
         self.numberOfScales = 3;
-        self.scales_in = np.array([[1, 2, 1], [2, 3, 1], [3, 4, 1]],np.uint32);
-        self.scales_out = np.array([[2, 3, 1],[3, 4, 1],[4, 5, 1]],np.uint32);
-        self.grid_step = 0.3; 
+        self.scalesIn = np.array([[1, 2, 1], [2, 3, 1], [3, 4, 1]],np.uint32);
+        self.scalesOut = np.array([[2, 3, 1],[3, 4, 1],[4, 5, 1]],np.uint32);
+        self.gridStep = 0.3; 
         
         self.M= 6   # parameter used when generating the mask
                 
         self.rKernelNoiseGlobal = np.array([3,3,1])
-        self.epsilon_machine = 1e-323 # 
+        self.epsilonMachine = 1e-323 # 
         
         self.rKernelNoiseLocal = np.array([2,2,1])
         self.epsilonSpotsNFA = 1.0/3.0;
@@ -129,7 +129,7 @@ class AContrarioDetection:
 
     def runTestNegSpotsNfa(self):
         
-        scales_in = self.scales_in 
+        scales_in = self.scalesIn 
         
         nfaNeg_1 = self.getArrayFromSlicer('acontrario_detection___nfaNeg_1___python')
         nfaNeg_2 = self.getArrayFromSlicer('acontrario_detection___nfaNeg_2___python')
@@ -525,7 +525,7 @@ class AContrarioDetection:
       
             
     def acontrario_local(self,dif,mask,ra1,rb1,rc1,ra2,rb2,rc2,grid_step):
-        #function [ pfaPos, T_eff, Ntest ] = acontrario_local(dif,mask,ra1,rb1,rc1,ra2,rb2,rc2,grid_step)
+        #function [ pfaPos, T_eff, Ntest ] = acontrario_local(dif,mask,ra1,rb1,rc1,ra2,rb2,rc2,gridStep)
         #
         #%==========================================================================
         #%                           Variable definition
@@ -550,9 +550,9 @@ class AContrarioDetection:
         #%==========================================================================
         #
         #% Define the testing grid T.
-        #stepA = ceil(grid_step*ra1)+1;
-        #stepB = ceil(grid_step*rb1)+1;
-        #stepC = ceil(grid_step*rc1);
+        #stepA = ceil(gridStep*ra1)+1;
+        #stepB = ceil(gridStep*rb1)+1;
+        #stepC = ceil(gridStep*rc1);
         #T = zeros(n,p,q);
         #T(1:stepA:n,1:stepB:p,1:stepC:q) = 1;
         #T(mask<=0) = 0;
@@ -872,7 +872,7 @@ class AContrarioDetection:
         #rKernelNoise1 = 3;
         #rKernelNoise2 = 3;
         #rKernelNoise3 = 1;
-        #epsilon_machine = 1e-323;
+        #epsilonMachine = 1e-323;
         #
         #%==========================================================================
         #%                           Main Function
@@ -916,7 +916,7 @@ class AContrarioDetection:
         #% pixels defined by the grid TsubSample. Work with the logarithm of the
         #% density for precision reasons.
         #difM_subSampled = difM_suav(TsubSample>0);
-        #log_density = log((ksdensity(difM_subSampled(:)) + epsilon_machine));
+        #log_density = log((ksdensity(difM_subSampled(:)) + epsilonMachine));
         #
         #% The following step is done only to obtain the bins were the density was
         #% computed. They cannot be obtained in the previous step because we want
@@ -965,7 +965,7 @@ class AContrarioDetection:
         rKernelNoise1 = self.rKernelNoiseGlobal[0]; # 3;
         rKernelNoise2 = self.rKernelNoiseGlobal[1]; #3;
         rKernelNoise3 = self.rKernelNoiseGlobal[2]; #1;
-        epsilon_machine = self.epsilon_machine;
+        epsilon_machine = self.epsilonMachine;
         
         #==========================================================================
         #                           Main Function
@@ -1015,7 +1015,7 @@ class AContrarioDetection:
         # density for precision reasons.
         difM_subSampled = difM_suav[TsubSample>0];
         hist, bin_edges = self.ksdensity(difM_subSampled.ravel())
-        #log_density = np.log((ksdensity(difM_subSampled(:)) + epsilon_machine));
+        #log_density = np.log((ksdensity(difM_subSampled(:)) + epsilonMachine));
         log_density = np.log(hist + epsilon_machine);
         
         print hist
@@ -1087,18 +1087,18 @@ class AContrarioDetection:
         #==========================================================================
         #
         # Tested scales
-        #scales_in = [2 1 1;3 2 1;4 3 1];     # Scales for the tested spots.
-        #scales_out = [3 2 1;4 3 1;5 4 1];    # Scales for defining the corresponding neighbourhoods.
-        #total_esc = size(scales_in,1);
-        #grid_step = 0.3;        
-        #scales_in = np.array([[2, 1, 1], [3, 2, 1], [4, 3, 1]],np.uint32);
-        #scales_out = np.array([[3, 2, 1],[4, 3, 1],[5, 4, 1]],np.uint32);
+        #scalesIn = [2 1 1;3 2 1;4 3 1];     # Scales for the tested spots.
+        #scalesOut = [3 2 1;4 3 1;5 4 1];    # Scales for defining the corresponding neighbourhoods.
+        #total_esc = size(scalesIn,1);
+        #gridStep = 0.3;        
+        #scalesIn = np.array([[2, 1, 1], [3, 2, 1], [4, 3, 1]],np.uint32);
+        #scalesOut = np.array([[3, 2, 1],[4, 3, 1],[5, 4, 1]],np.uint32);
         
         #para respetar la forma de la cabeza segun como se carga en slicer
-        scales_in = self.scales_in 
-        scales_out = self.scales_out
+        scales_in = self.scalesIn 
+        scales_out = self.scalesOut
         total_esc = scales_in.shape[1]; 
-        grid_step = self.grid_step
+        grid_step = self.gridStep
         #==========================================================================
         #                           Main Program
         #==========================================================================
@@ -1115,8 +1115,8 @@ class AContrarioDetection:
         
         # Generate the brain mask.
         self.userMessage="Running a-contrario: Generating the brain mask"
-        #mask = create_mask(ic,inter,scales_in(2,1),scales_in(2,2),scales_in(2,3));
-        #ra=scales_in[1,0]; rb= scales_in[1,1]; rc=scales_in[1,2] #TODO
+        #mask = create_mask(ic,inter,scalesIn(2,1),scalesIn(2,2),scalesIn(2,3));
+        #ra=scalesIn[1,0]; rb= scalesIn[1,1]; rc=scalesIn[1,2] #TODO
         ra=scales_in[1,0];rb=scales_in[1,1];rc=scales_in[1,2];
         #ra=3; rb=2; rc=1; #PROVISORIO (NO ME ANDA BIEN sitkMaskClosedFilled = sitk.BinaryFillhole(sitkMaskClosed) si le paso scale_in
         print ra,rb,rc

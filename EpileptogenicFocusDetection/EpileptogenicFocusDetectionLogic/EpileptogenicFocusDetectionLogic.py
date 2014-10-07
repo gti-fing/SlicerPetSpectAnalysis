@@ -40,6 +40,8 @@ class EpileptogenicFocusDetectionLogic:
     self.BASAL_TO_MRI_REGISTRATION_TRANSFORM_NAME = 'basalToMRITransform'
     self.BASAL_TO_MRI_VOLUME_NAME = 'basalVolume_mriVolume'
     
+    self.REGISTRATION_TIMEOUT = 60 # registration shouldn't take more than 60 seconds
+    
     self.ICTAL_BASAL_SUBTRACTION = 'Ictal-Basal Subtraction'
     
     self.FOCI_DETECTION_COLORMAP_NAME = "FociDetectionColorMap"
@@ -367,7 +369,7 @@ class EpileptogenicFocusDetectionLogic:
       #cliBrainsFitRigidNode = slicer.cli.run(brainsfit, None, parameters, True)  # El ultimo true es para que espere hasta la finalizacion
       
       waitCount = 0
-      while cliBrainsFitRigidNode.GetStatusString() != 'Completed' and waitCount < 20:
+      while cliBrainsFitRigidNode.GetStatusString() != 'Completed' and waitCount < self.REGISTRATION_TIMEOUT:
         self.delayDisplay( "Register " + movingVolumeNode.GetName()+ " to " + fixedVolumeNode.GetName() +  "... %d" % waitCount )
         waitCount += 1
       self.delayDisplay("Register " + movingVolumeNode.GetName()+ "to " + fixedVolumeNode.GetName() + " finished")

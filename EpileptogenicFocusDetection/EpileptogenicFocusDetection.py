@@ -156,6 +156,8 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.siscomHideOverlayButton.disconnect('clicked()', self.onSiscomHideOverlayButtonClicked)
     self.aContrarioOverlayButton.disconnect('clicked()', self.onAContrarioOverlayButtonClicked)
     self.aContrarioHideOverlayButton.disconnect('clicked()', self.onAContrarioHideOverlayButtonClicked)
+    self.cancelAContrarioButton.disconnect('clicked()', self.onCancelAContrarioButtonClicked)
+    self.aContrarioDefaultParametersButton.disconnect('clicked',self.setAContrarioDefaultParameters())    
     # Step 4
     self.saveResultsButton.disconnect('clicked()',self.onSaveResultsButtonClicked)
 
@@ -413,11 +415,6 @@ class EpileptogenicFocusDetectionSlicelet(object):
     
     self.step3B_AContrarioDetectionCollapsibleButtonLayout.addRow(self.aContrarioProgressFrame)
     
-
-    
-    
-
-    
     
     
     self.aContrarioOverlayFrame = qt.QFrame()
@@ -455,43 +452,39 @@ class EpileptogenicFocusDetectionSlicelet(object):
     
     # Number of scales
     self.numberOfScalesOption = qt.QDoubleSpinBox()
-    self.numberOfScalesOption.value = 3
     self.numberOfScalesOption.setMaximum(10)
     self.advanced_AContrarioDetectionCollapsibleButtonLayout.addRow('Number of scales', self.numberOfScalesOption)
     
     self.scalesInMatrix = qt.QLineEdit()
-    self.scalesInMatrix.text = '1,2,1,2,3,1,3,4,1'
     self.scalesOutMatrix = qt.QLineEdit()
-    self.scalesOutMatrix.text = '2,3,1,3,4,1,4,5,1'
     self.advanced_AContrarioDetectionCollapsibleButtonLayout.addRow('Scales in:', self.scalesInMatrix)
     self.advanced_AContrarioDetectionCollapsibleButtonLayout.addRow('Scales out:', self.scalesOutMatrix)
     
     self.gridStepLineEdit = qt.QLineEdit()
-    self.gridStepLineEdit.text = 0.3
     self.advanced_AContrarioDetectionCollapsibleButtonLayout.addRow('Grid step:', self.gridStepLineEdit)
     
     self.maskThresholdParameter = qt.QDoubleSpinBox()
-    self.maskThresholdParameter.value = 6
     self.maskThresholdParameter.setMaximum(20)
     self.advanced_AContrarioDetectionCollapsibleButtonLayout.addRow('Mask threshold', self.maskThresholdParameter)
     
     # A-contrario global parameters
     self.rKernelNoiseGlobalLineEdit = qt.QLineEdit() 
-    self.rKernelNoiseGlobalLineEdit.text = '3,3,1'
     self.epsilonMachineLineEdit = qt.QLineEdit() 
-    self.epsilonMachineLineEdit.text = '1e-323'
     self.advanced_AContrarioDetectionCollapsibleButtonLayout.addRow('radio kernel noise:', self.rKernelNoiseGlobalLineEdit)
     self.advanced_AContrarioDetectionCollapsibleButtonLayout.addRow('epsilon machine:', self.epsilonMachineLineEdit)
     
     # A-contrario local parameters
     self.rKernelNoiseLocalLineEdit = qt.QLineEdit()
-    self.rKernelNoiseLocalLineEdit.text = '2,2,1'
     self.advanced_AContrarioDetectionCollapsibleButtonLayout.addRow('radio kernel noise local:', self.rKernelNoiseLocalLineEdit)
     
     # Spots NFA parameters
     self.epsilonSpotsNFALineEdit = qt.QLineEdit()
-    self.epsilonSpotsNFALineEdit.text = 0.3333334
     self.advanced_AContrarioDetectionCollapsibleButtonLayout.addRow('epsilon spots nfa:', self.epsilonSpotsNFALineEdit)
+    
+    self.aContrarioDefaultParametersButton = qt.QPushButton('Set default parameters')
+    self.advanced_AContrarioDetectionCollapsibleButtonLayout.addRow(self.aContrarioDefaultParametersButton)
+    
+    self.setAContrarioDefaultParameters()
   
     
     # Step 3/C): Compare detections
@@ -531,10 +524,23 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.siscomHideOverlayButton.connect('clicked()', self.onSiscomHideOverlayButtonClicked)
     self.aContrarioOverlayButton.connect('clicked()', self.onAContrarioOverlayButtonClicked)
     self.aContrarioHideOverlayButton.connect('clicked()', self.onAContrarioHideOverlayButtonClicked)
+    self.aContrarioDefaultParametersButton.connect('clicked',self.setAContrarioDefaultParameters())
 
     # Open OBI fiducial selection panel when step is first opened
     self.step3A_SISCOMDetectionCollapsibleButton.setProperty('collapsed', False)
-
+    
+    
+  def setAContrarioDefaultParameters(self):
+    self.numberOfScalesOption.value = 3      
+    self.scalesInMatrix.text = '1,2,1,2,3,1,3,4,1'
+    self.scalesOutMatrix.text = '2,3,1,3,4,1,4,5,1'
+    self.gridStepLineEdit.text = 0.3
+    self.maskThresholdParameter.value = 6
+    self.rKernelNoiseGlobalLineEdit.text = '3,3,1'
+    self.epsilonMachineLineEdit.text = '1e-323'
+    self.rKernelNoiseLocalLineEdit.text = '2,2,1'
+    self.epsilonSpotsNFALineEdit.text = 0.3333334
+    
   
   def setup_Step4_SaveResults(self):
     # Step 1: Load studies panel
@@ -841,54 +847,63 @@ class EpileptogenicFocusDetectionSlicelet(object):
     scIn = scalesInText.split(',')
     numberOfScalesIn = numpy.size(scIn)
     if (numberOfScalesIn != (self.numberOfScalesOption.value * 3)):  
-      print ('Please check the number of scales and the scales_in parameters')
+      print ('Please check the number of scales and the scalesIn parameters and try again')
+      ret=qt.QMessageBox.warning(self.parent, 'A-contrario parameters', 'Please check the number of scales and the scalesIn parameters', qt.QMessageBox.Ok , qt.QMessageBox.Ok )
       return False
     scalesOutText = self.scalesOutMatrix.text
     scOut = scalesOutText.split(',')
     numberOfScalesOut = numpy.size(scOut)
     if (numberOfScalesOut != (self.numberOfScalesOption.value * 3)):  
-      print ('Please check the number of scales and the scales_out parameters')
+      print ('Please check the number of scales and the scalesOut parameters and try again')
+      ret=qt.QMessageBox.warning(self.parent, 'A-contrario parameters', 'Please check the number of scales and the scalesOut parameters', qt.QMessageBox.Ok , qt.QMessageBox.Ok )
       return False
     
     gridStep = self.gridStepLineEdit.text
     if self.logic.isDouble(gridStep)==False:
       print('Grid step must be double')
+      ret=qt.QMessageBox.warning(self.parent, 'A-contrario parameters', 'Grid step format must be double', qt.QMessageBox.Ok , qt.QMessageBox.Ok )
       return False
   
     M = self.maskThresholdParameter.value
     if self.logic.isDouble(M)==False:
       print('M must be double!')
+      ret=qt.QMessageBox.warning(self.parent, 'A-contrario parameters', 'M must be a double!', qt.QMessageBox.Ok , qt.QMessageBox.Ok )
       return False
   
     kernelGlobal =numpy.fromstring(self.rKernelNoiseGlobalLineEdit.text   , dtype=int, sep=',')
     if kernelGlobal.size != 3:
+      ret=qt.QMessageBox.warning(self.parent, 'A-contrario parameters', 'Three comma separated values must be indicated in the global kernel radio parameter ', qt.QMessageBox.Ok , qt.QMessageBox.Ok )  
       print('Three comma separated values must be indicated in the global kernel radio parameter ')
+      return False
     
     kernelLocal =numpy.fromstring(self.rKernelNoiseLocalLineEdit.text   , dtype=int, sep=',')
     if kernelLocal.size != 3:
       print('Three comma separated values must be indicated in the local kernel radio parameter ')
-   
+      ret=qt.QMessageBox.warning(self.parent, 'A-contrario parameters', 'Three comma separated values must be indicated in the local kernel radio parameter ', qt.QMessageBox.Ok , qt.QMessageBox.Ok ) 
+      return False
 
     epsilonMachine = self.epsilonMachineLineEdit.text
     if self.logic.isDouble(epsilonMachine)==False:
       print('Epsilon machine must be double!')
+      ret=qt.QMessageBox.warning(self.parent, 'A-contrario parameters', 'Epsilon machine must be a double!', qt.QMessageBox.Ok , qt.QMessageBox.Ok )
       return False
   
   
     epsilonSpotsNFA = self.epsilonSpotsNFALineEdit.text
     if self.logic.isDouble(epsilonSpotsNFA)==False:
       print('Epsilon spots NFA must be double!')
+      ret=qt.QMessageBox.warning(self.parent, 'A-contrario parameters', 'Epsilon spots NFA must be a double!', qt.QMessageBox.Ok , qt.QMessageBox.Ok )
       return False  
     
     print "Parameters were properly set!"
     
     self.aContrarioDetection.numberOfScales = self.numberOfScalesOption.value
-    self.aContrarioDetection.scales_in = numpy.array([[scIn[0], scIn[1], scIn[2]], [scIn[3], scIn[4], scIn[5]], [scIn[6], scIn[7], scIn[8]]],numpy.uint32);                       
-    self.aContrarioDetection.scales_out = numpy.array([[scOut[0], scOut[1], scOut[2]], [scOut[3], scOut[4], scOut[5]], [scOut[6], scOut[7], scOut[8]]],numpy.uint32);   
-    self.aContrarioDetection.grid_step = numpy.double(gridStep)
+    self.aContrarioDetection.scalesIn = numpy.array([[scIn[0], scIn[1], scIn[2]], [scIn[3], scIn[4], scIn[5]], [scIn[6], scIn[7], scIn[8]]],numpy.uint32);                       
+    self.aContrarioDetection.scalesOut = numpy.array([[scOut[0], scOut[1], scOut[2]], [scOut[3], scOut[4], scOut[5]], [scOut[6], scOut[7], scOut[8]]],numpy.uint32);   
+    self.aContrarioDetection.gridStep = numpy.double(gridStep)
     self.aContrarioDetection.M = numpy.double(M)
     self.aContrarioDetection.rKernelNoiseGlobal = kernelGlobal
-    self.aContrarioDetection.epsilon_machine = numpy.double(epsilonMachine)
+    self.aContrarioDetection.epsilonMachine = numpy.double(epsilonMachine)
     
 
     self.aContrarioDetection.rKernelNoiseLocal = kernelLocal
