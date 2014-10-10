@@ -793,6 +793,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
     print 'standard deviation inside mask = ' + str(stddevInside_mask)
     self.stdDevSISCOMSlider.minimum = 0;
     self.stdDevSISCOMSlider.maximum = maximumValue / stddevInside_mask;      
+    self.stdDevSISCOMSlider.singleStep = 0.5
     
     
   def onStdDevSISCOMSliderClicked(self, value): 
@@ -1067,6 +1068,7 @@ class EpileptogenicFocusDetectionWidget:
     if not parent:
       self.setup()
       self.parent.show()
+    self.mainFrame = None  
 
   def setup(self):
     # Reload panel
@@ -1094,12 +1096,13 @@ class EpileptogenicFocusDetectionWidget:
     """
     globals()[moduleName] = slicer.util.reloadScriptedModule(moduleName)
 
-  def onShowSliceletButtonClicked(self):
-    mainFrame = SliceletMainFrame()
-    mainFrame.setMinimumWidth(1200)
-    mainFrame.connect('destroyed()', self.onSliceletClosed)
-    slicelet = EpileptogenicFocusDetectionSlicelet(mainFrame)
-    mainFrame.setSlicelet(slicelet)
+  def onShowSliceletButtonClicked(self): 
+    if not self.mainFrame:   
+      self.mainFrame = SliceletMainFrame()
+      self.mainFrame.setMinimumWidth(1200)
+      self.mainFrame.connect('destroyed()', self.onSliceletClosed)
+      slicelet = EpileptogenicFocusDetectionSlicelet(self.mainFrame)
+      self.mainFrame.setSlicelet(slicelet)
 
     # Make the slicelet reachable from the Slicer python interactor for testing
     # TODO: Should be uncommented for testing
