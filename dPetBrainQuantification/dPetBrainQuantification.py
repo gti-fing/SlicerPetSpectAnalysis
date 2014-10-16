@@ -48,6 +48,8 @@ class dPetBrainQuantificationWidget:
     self.lns = None
     self.cvns = None
     self.cn = None
+    self.foregroundVolumeNode = None
+    #self.backgroundVolumeNode = None
 
   def setup (self) :    
     self.lastLogic=dPetBrainQuantificationLogic()
@@ -290,11 +292,11 @@ class dPetBrainQuantificationWidget:
     #
     # pTAC estimation csv file Button
     #
-    label=qt.QLabel('Output CSV file')
-    self.pTACcsvOutputFileButton=qt.QPushButton("Write estimated pTAC to .csv file")
-    self.pTACcsvOutputFileButton.toolTip="Opens a file dialog window to output CSV pTAC file"
-    self.pTACcsvOutputFileButton.connect('clicked(bool)',self.onpTACcsvOutputFileButtonClicked)
-    pTACestimationFormLayout.addRow(label,self.pTACcsvOutputFileButton)
+    #label=qt.QLabel('Output CSV file')
+    #self.pTACcsvOutputFileButton=qt.QPushButton("Write estimated pTAC to .csv file")
+    #self.pTACcsvOutputFileButton.toolTip="Opens a file dialog window to output CSV pTAC file"
+    #self.pTACcsvOutputFileButton.connect('clicked(bool)',self.onpTACcsvOutputFileButtonClicked)
+    #pTACestimationFormLayout.addRow(label,self.pTACcsvOutputFileButton)
     
     #Apply All
     self.ApplyKMap_all = qt.QPushButton("Apply selected K-Map estimation")
@@ -336,6 +338,11 @@ class dPetBrainQuantificationWidget:
     if self.mvNode != None :
         mvDisplay = self.mvNode.GetDisplayNode()
         mvDisplay.SetFrameComponent(nframe)
+        data=slicer.util.array(self.mvNode.GetID())
+        minimumValue =numpy.int(data[:,:,:,nframe].min())
+        maximumValue =numpy.int(data[:,:,:,nframe].max())  
+        mvDisplay.SetAutoWindowLevel(0)
+        mvDisplay.SetWindowLevelMinMax(minimumValue,maximumValue)
     else:
         return
           
@@ -359,6 +366,15 @@ class dPetBrainQuantificationWidget:
     selectionNode = slicer.app.applicationLogic().GetSelectionNode()
     selectionNode.SetReferenceActiveVolumeID(BrainMaskVolume.GetID())
     slicer.app.applicationLogic().PropagateVolumeSelection(0)
+    mTisw = self.lastLogic.mTisw
+    mTisg = self.lastLogic.mTisg
+    frameTime = self.lastLogic.frameTime
+    self.lns = slicer.mrmlScene.GetNodesByClass('vtkMRMLLayoutNode')
+    self.cvns = slicer.mrmlScene.GetNodesByClass('vtkMRMLChartViewNode')
+    self.cn = slicer.mrmlScene.AddNode(slicer.vtkMRMLChartNode())
+    self.lastLogic.iniChart('Mean Activity of Two Segmented Brain Regions','time','value',self.lns,self.cvns,self.cn)
+    self.lastLogic.addChart(frameTime,mTisw,'mTisw',self.cn,self.cvns)
+    self.lastLogic.addChart(frameTime,mTisg,'mTisg',self.cn,self.cvns)
           
   def onCarotidSegmSelector(self):
     self.CarSegmParameters.CSdestroy()
@@ -371,7 +387,7 @@ class dPetBrainQuantificationWidget:
         Helper.SetBgFgVolumes(self.mvNode.GetID(), None)
         nFrames = self.mvNode.GetNumberOfFrames()
         self.CarSegmParameters.CSwidgets[-1].setChecked(1)
-        self.CarSegmParameters.CSwidgets[-5].maximum = nFrames-1
+        self.CarSegmParameters.CSwidgets[-3].maximum = nFrames-1
     self.CarSegmType = index
           
   def onDisplaySegmentation(self):
@@ -384,19 +400,21 @@ class dPetBrainQuantificationWidget:
             print(index,' ',roi)
     #self.lastLogic = dPetBrainQuantificationLogic()
     
-    connectivityfilter = self.CarSegmParameters.CSwidgets[-3].isChecked()
+    #connectivityfilter = self.CarSegmParameters.CSwidgets[-3].isChecked()
     FrameForSegm = None
-    if self.CarSegmParameters.CSwidgets[-6].isChecked() :
-        FrameForSegm = self.CarSegmParameters.CSwidgets[-5].value
+    if self.CarSegmParameters.CSwidgets[-4].isChecked() :
+        FrameForSegm = self.CarSegmParameters.CSwidgets[-3].value
         FrameForSegm = int(FrameForSegm)
         
-    CarotidMask = self.lastLogic.applyCarotidSegmentation(self.mvNode,roi,connectivityfilter,FrameForSegm)
+    CarotidMask = self.lastLogic.applyCarotidSegmentation(self.mvNode,roi,FrameForSegm)
     CarotidMask .SetScene(slicer.mrmlScene)
     slicer.mrmlScene.AddNode(CarotidMask)
     self.csvSelector.setCurrentNode(CarotidMask)
-    selectionNode = slicer.app.applicationLogic().GetSelectionNode()
-    selectionNode.SetReferenceActiveVolumeID(CarotidMask.GetID())
-    slicer.app.applicationLogic().PropagateVolumeSelection(0)
+    #selectionNode = slicer.app.applicationLogic().GetSelectionNode()
+    #selectionNode.SetReferenceActiveVolumeID(CarotidMask.GetID())
+    #slicer.app.applicationLogic().PropagateVolumeSelection(0)
+    self.foregroundVolumeNode=CarotidMask
+    self.setForeground()
     
     if self.CarSegmParameters.CSwidgets[-1].isChecked() :
             mCar = self.lastLogic.mCar
@@ -417,13 +435,13 @@ class dPetBrainQuantificationWidget:
         
     self.pTACestParameters.CreatepTACParameters(index)
     #Caso IDIF
-    if (self.lastLogic != None) & (index == 0) :
+    if (self.lastLogic.Carotids_array_Mask != []) & (index == 0) :
             self.pTACestParameters.pTACwidgets[1].setChecked(1)
             if (self.VenousSamplepTAC != []) & (self.VenousSampleTime != []) :
                 self.pTACestParameters.pTACwidgets[3].setChecked(1)
                 
     self.pTACEstType = index
-
+    
   def onGetpTAC(self) :
     index = self.pTACSelector.currentIndex
     if index < 0:
@@ -436,13 +454,13 @@ class dPetBrainQuantificationWidget:
         HunterTailfit = self.pTACestParameters.pTACwidgets[5].isChecked()
         #without venous samples
         if not(self.pTACestParameters.pTACwidgets[3].isChecked()) :
-            frameTime, pTAC, hotvox= self.lastLogic.pTACestimationIDIF(None,None,HunterTailfit)
+            frameTime, pTAC, name ,hotvox= self.lastLogic.pTACestimationIDIF(None,None,HunterTailfit)
             #with venous samples
         if (self.pTACestParameters.pTACwidgets[3].isChecked()) :
             if (self.VenousSamplepTAC == []) | (self.VenousSampleTime == []) :
                 print('A venous sample file was not load')
                 return
-            frameTime, pTAC,hotvox = self.lastLogic.pTACestimationIDIF(self.VenousSampleTime,self.VenousSamplepTAC,HunterTailfit)
+            frameTime, pTAC,name,hotvox = self.lastLogic.pTACestimationIDIF(self.VenousSampleTime,self.VenousSamplepTAC,HunterTailfit)
                   
     if (index == 1) :
         if (self.VenousSamplepTAC == []) | (self.VenousSampleTime == []) :
@@ -452,22 +470,23 @@ class dPetBrainQuantificationWidget:
         print('dosage' , Dosage)
         LeanWeight = self.pTACestParameters.pTACwidgets[3].value
         print('LeanWeight' , LeanWeight)
-        frameTime, pTAC = self.lastLogic.PBIFhunter(Dosage, LeanWeight, self.VenousSamplepTAC,self.VenousSampleTime)
+        frameTime, pTAC,name = self.lastLogic.PBIFhunter(Dosage, LeanWeight, self.VenousSamplepTAC,self.VenousSampleTime)
                   
                            
     if self.pTACestParameters.pTACwidgets[-1].isChecked() :
         self.lns = slicer.mrmlScene.GetNodesByClass('vtkMRMLLayoutNode')
         self.cvns = slicer.mrmlScene.GetNodesByClass('vtkMRMLChartViewNode')
         self.cn = slicer.mrmlScene.AddNode(slicer.vtkMRMLChartNode())
-        self.lastLogic.iniChart('estimated pTAC','time','value',self.lns,self.cvns,self.cn)
-        self.lastLogic.addChart(frameTime,pTAC,'estimated pTAC',self.cn,self.cvns)
-        if index == 0 :
-            self.lastLogic.addChart(frameTime,hotvox,'hot voxels',self.cn,self.cvns)
+        self.lastLogic.iniChart('Estimated pTAC','time (s)','Activity (Bq/gr)',self.lns,self.cvns,self.cn)
+        self.lastLogic.addChart(frameTime,pTAC,name,self.cn,self.cvns)
+        print('Ganancia Cross Calibration :', self.lastLogic.GainCC)
+        if (self.VenousSamplepTAC == []) | (self.VenousSampleTime == []) :
+            self.lastLogic.addChart(self.VenousSampleTime,self.VenousSamplepTAC,'BloodSamples',self.cn,self.cvns)
           
     if self.pTACestParameters.pTACwidgets[-3].isChecked():
         print('saving pTAC estimated in .csv')
         self.lastLogic.writeCSVsamples(self.outputcsvDir, self.lastLogic.frameTime, self.lastLogic.pTAC_est)
-          
+      
   def onNiftiParser(self):
     #create new multivolume node
     mvNode=slicer.vtkMRMLMultiVolumeNode()
@@ -527,16 +546,65 @@ class dPetBrainQuantificationWidget:
         MaskOption='ROI'
         Mask=self.KMapMaskParametersWidget.KMapwidgets[1].currentNode()
     print 'FALTA MANDAR Y HACER EL RUN, TESTEAR SOLO QUE ESTE DEFINIENDO BIEN LAS COSAS'
-    KMap=self.lastLogic.applyKMapEstimation(pTACOption, pTAC,tpTAC, MaskOption, Mask)
+    KMap,h_v,h_i=self.lastLogic.applyKMapEstimation(pTACOption, pTAC,tpTAC, MaskOption, Mask)
+    #print KMap
+    #self.foregroundVolumeNode=KMap
+    #print self.foregroundVolumeNode
+    #print self.foregroundVolumeNode.GetDisplayNode()
+    #self.setForeground()
     KMap.SetScene(slicer.mrmlScene)
     KMap.SetName("HELLO PATLAK OUTPUT")
     slicer.mrmlScene.AddNode(KMap)
+    self.foregroundVolumeNode=KMap
+    self.setForeground()
+    
+    #dn = self.setDoubleArrayNode(h_v, h_i, 'Kmap_Histogram')
+    self.lns = slicer.mrmlScene.GetNodesByClass('vtkMRMLLayoutNode')
+    self.cvns = slicer.mrmlScene.GetNodesByClass('vtkMRMLChartViewNode')
+    self.cn = slicer.mrmlScene.AddNode(slicer.vtkMRMLChartNode())
+    self.lastLogic.iniChart('Histograma Ki','Ki (min-1 x 10-4) ','number of voxels',self.lns,self.cvns,self.cn)
+    self.lastLogic.addChart(h_v,h_i,'Histograma de K',self.cn,self.cvns)
+
       
   def onpTACcsvOutputFileChanged(self,t):
     self.outputcsvDir=t
       
   def onpTACcsvOutputFileButtonClicked(self):
     self.pTACcsvOutputFileDialog.show()
+    
+  def setForeground(self):
+    # Set the background volume 
+    redWidgetCompNode = slicer.mrmlScene.GetNodeByID("vtkMRMLSliceCompositeNodeRed")
+    #redWidgetCompNode.SetBackgroundVolumeID(self.backgroundVolumeNode.GetID())
+    redWidgetCompNode.SetForegroundVolumeID(self.foregroundVolumeNode.GetID())
+    redWidgetCompNode.SetForegroundOpacity(0.5)
+    redNode=slicer.util.getNode("vtkMRMLSliceNodeRed")
+    redNode.SetSliceVisible(True)
+
+    greenWidgetCompNode = slicer.mrmlScene.GetNodeByID("vtkMRMLSliceCompositeNodeGreen")
+    #greenWidgetCompNode.SetBackgroundVolumeID(self.backgroundVolumeNode.GetID())
+    greenWidgetCompNode.SetForegroundVolumeID(self.foregroundVolumeNode.GetID())
+    greenWidgetCompNode.SetForegroundOpacity(0.5)
+    greenNode=slicer.util.getNode("vtkMRMLSliceNodeGreen")
+    greenNode.SetSliceVisible(True)
+
+    yellowWidgetCompNode = slicer.mrmlScene.GetNodeByID("vtkMRMLSliceCompositeNodeYellow")
+    #yellowWidgetCompNode.SetBackgroundVolumeID(self.backgroundVolumeNode.GetID())
+    yellowWidgetCompNode.SetForegroundVolumeID(self.foregroundVolumeNode.GetID())
+    yellowWidgetCompNode.SetForegroundOpacity(0.5)  
+    yellowNode=slicer.util.getNode("vtkMRMLSliceNodeGreen")
+    yellowNode.SetSliceVisible(True)
+    
+    dNode = self.foregroundVolumeNode.GetDisplayNode()
+    data=vtk.util.numpy_support.vtk_to_numpy(self.foregroundVolumeNode.GetImageData().GetPointData().GetScalars())
+    minimumValue =1
+    maximumValue =data.max()  
+    dNode.SetAutoWindowLevel(0)
+    dNode.SetThreshold(minimumValue-0.5,maximumValue+0.5)
+    dNode.SetWindowLevelMinMax(minimumValue-0.5,maximumValue+0.5)
+    colorMapNode=slicer.util.getNode("Rainbow")
+    dNode.SetAndObserveColorNodeID(colorMapNode.GetID())
+    dNode.ApplyThresholdOn()
       
 class dPetBrainQuantificationLogic:
 
@@ -549,10 +617,13 @@ class dPetBrainQuantificationLogic:
     self.Carotids_array_Mask = []
     self.mTis = []
     self.mCar = []
+    self.mTisg = []
+    self.mTisw = []
     self.pTAC_est = []
     self.scalarVolumeTemplate = None
     self.numInitshort=None
     self.numEndshort=None
+    self.GainCC = 0
     
   def extractFrame(self,mvNode,frameId):
     #Reference Scalar Volume
@@ -584,7 +655,7 @@ class dPetBrainQuantificationLogic:
 
     return frameVolume
   
-  def applyCarotidSegmentation(self,mvNode,roi,connectivityfilter,FrameForSegm) :
+  def applyCarotidSegmentation(self,mvNode,roi,FrameForSegm) :
     if mvNode == None :
             print('No multivolume selected')
             return
@@ -616,9 +687,21 @@ class dPetBrainQuantificationLogic:
       #Correlation threshold is 50% 
       CorrUm = 0.5
       sigUm = self.OtsuThreshold(acData[(aCorrelation > CorrUm) ] ,100,None,None)
-      print('Data Mean',acData.mean())
+      #print('Data Mean',acData.mean())
+      
+      #Otsu Double Threshold
+      OtsuDTFilter = SimpleITK.OtsuMultipleThresholdsImageFilter()
+      OtsuDTFilter.SetNumberOfThresholds(2)
+      OtsuDTFilter.SetNumberOfHistogramBins(125)
+      Im_acData = numpy.reshape(acData,self.Dim)
+      ITKImOtsu = OtsuDTFilter.Execute(SimpleITK.GetImageFromArray(Im_acData))
+      DTOtsu_array = SimpleITK.GetArrayFromImage(ITKImOtsu)
+      DTOtsu_array = DTOtsu_array.reshape(-1)
+      
       Carotids_array_Mask = numpy.zeros(aCorrelation.size)
-      Carotids_array_Mask[(aCorrelation>CorrUm) & (acData>sigUm) ] = 1
+      Carotids_array_Mask[(aCorrelation>CorrUm) & (DTOtsu_array == 2) ] = 1
+      #Carotids_array_Mask = numpy.zeros(aCorrelation.size)
+      #Carotids_array_Mask[(aCorrelation>CorrUm) & (acData>sigUm) ] = 1
             
             
     #
@@ -672,24 +755,27 @@ class dPetBrainQuantificationLogic:
     Carotids_array_Mask = SimpleITK.GetArrayFromImage(CarotidBinOpRec_Img)
             
     #Connectivity filter
-    if connectivityfilter :
-      Carotids_array_Mask = self.connectivityFilterSegmentation(Carotids_array_Mask,segmType)
+    #if connectivityfilter :
+    #  Carotids_array_Mask = self.connectivityFilterSegmentation(Carotids_array_Mask,segmType)
 
     Dilate = SimpleITK.BinaryDilateImageFilter()
     Dilate.Ball
     Dilate.SetKernelRadius([2,2,2])
     DilateImg = Dilate.Execute(SimpleITK.GetImageFromArray(Carotids_array_Mask))
     Dilate_array = SimpleITK.GetArrayFromImage(DilateImg)
-    Dilate_array = Dilate_array * 2
+    #Dilate_array = Dilate_array * 2
+    Dilate_array[Carotids_array_Mask > 0] = 2
     print('Dilate',Dilate_array.max())
-    Carotids_array_Mask = Dilate_array - Carotids_array_Mask
-    Carotids_array_Mask = Carotids_array_Mask.reshape(-1)
+    #Carotids_array_Mask = Dilate_array - Carotids_array_Mask
+    Carotids_array_Mask = Dilate_array.reshape(-1)
 
             
-    self.mTis = numpy.mean(self.DataMatrix[:,Carotids_array_Mask==2],axis = 1)
-    self.mCar = numpy.mean(self.DataMatrix[:,Carotids_array_Mask==1],axis = 1)
+    self.mTis = numpy.mean(self.DataMatrix[:,Carotids_array_Mask==1],axis = 1)
+    self.mCar = numpy.mean(self.DataMatrix[:,Carotids_array_Mask==2],axis = 1)
     
     print('Peak de mCar',self.mCar.argmax())
+    print('Media tejido',self.mTis)
+    print('Media Carotida',self.mCar)
            
     #
     #Mask Volume
@@ -706,10 +792,10 @@ class dPetBrainQuantificationLogic:
     
     #hot voxels index
     peak_index = self.mCar[0:firstFr+1].argmax()
-    sortPeakCarotid = self.DataMatrix[peak_index,Carotids_array_Mask == 1].argsort()
-    minIndex = -1 * int(sortPeakCarotid.size*0.03)
+    sortPeakCarotid = self.DataMatrix[peak_index,Carotids_array_Mask == 2].argsort()
+    minIndex = -1 * int(sortPeakCarotid.size*0.05)
     self.hotvoxelsindex = sortPeakCarotid[minIndex:] 
-    print ( ' Hot Voxels index :',self.hotvoxelsindex)
+    print (' Hot Voxels index :',self.hotvoxelsindex)
     
     return Mask
    
@@ -815,19 +901,34 @@ class dPetBrainQuantificationLogic:
     
     #Set both classes to 1
     BrainMask_array = SimpleITK.GetArrayFromImage(BrainMask_ITKim)
-    BrainMask_array[BrainMask_array>0] = 1
+    BrainMask_array[BrainMask_array < 2] = 0
+    BrainMask_array[BrainMask_array == 2] = 1
+    #BrainMask_array[BrainMask_array > 0] = 1
     BrainMask_ITKim = SimpleITK.GetImageFromArray(BrainMask_array)
+    
     
     #BinaryOpening By Reconstruction (eliminate small elements)
     BinOpRec = SimpleITK.BinaryOpeningByReconstructionImageFilter()
     BinOpRec.SetKernelType(BinOpRec.Ball)
-    BinOpRec.SetKernelRadius([3,3,3])
+    BinOpRec.SetKernelRadius([5,5,5])
     BinOpRec.SetForegroundValue(1)
     BinOpRec.SetBackgroundValue(0)
             
     BrainMask_ITKim = BinOpRec.Execute(BrainMask_ITKim)
+    
+    BrainMask_ITKim = sitk.BinaryMorphologicalClosing(BrainMask_ITKim , [5, 5, 5])
     self.BrainMask = SimpleITK.GetArrayFromImage(BrainMask_ITKim)
     self.BrainMask = self.BrainMask.reshape(-1)
+    #Separar White de graymatter!
+    AcumulateBrain_array=AcumulateBrain_array.reshape(-1)
+    AcumulateBrain_inMask = AcumulateBrain_array[self.BrainMask>0] 
+    Um = self.OtsuThreshold(AcumulateBrain_inMask, 300, max(0,AcumulateBrain_inMask.min()), AcumulateBrain_inMask.max())
+    print('Umbral Grey White',Um)
+    self.BrainMask[(AcumulateBrain_array>Um) & (self.BrainMask>0)] = 2
+    
+    #Media Tejido1 y Tejido2
+    self.mTisw = numpy.mean(self.DataMatrix[:,self.BrainMask==1],axis = 1)
+    self.mTisg = numpy.mean(self.DataMatrix[:,self.BrainMask==2],axis = 1)
     
     #Scalar Volume Template
     self.scalarVolumeTemplate = self.extractFrame(mvNode, 0)
@@ -922,26 +1023,21 @@ class dPetBrainQuantificationLogic:
   def genpTAC(self,Time,Ip):
       pTAC = numpy.zeros(Time.shape)
       Time = Time - Time[0]
+      A1 = 30000
+      A2 = 4637
+      A3 = 8768
+      b1 = -9/60
+      b2 = -0.3/60
+      b3 = -0.012/60
       for i  in range(Time.size) :
           
           #line to peak
-          if (Time[i]<=Time[Ip]) &  (Time[i] >= (Time[Ip]-20)):
-              pTAC[i] = (Time[i] - Time[Ip] + 20)/2
-              #print('pTAC1 es:',pTAC[i], 'Time es: ',Time[i])
-                        
-          #line down from peak
-          if (Time[i]> Time[Ip] ) & (Time[i]<= Time[Ip]  + 60) :
-              pTAC[i] = -((10-1.67)/60)*(Time[i]-Time[Ip] )+10
-              #print('pTAC2 es:',pTAC[i], 'Time es: ',Time[i])        
           
-          #exponential tail
-          if (Time[i]> (Time[Ip]  + 60)) :
-              c=1.13
-              d=-0.0035
-              e=1.056
-              f=-0.00034
-              pTAC[i]  = e* numpy.exp(f*(Time[i]-Time[Ip])) + c * numpy.exp(d*(Time[i]-Time[Ip])) 
-                        #print('pTAC3 es:',pTAC[i], 'Time es: ',Time[i])
+          if (Time[i]<=Time[Ip]) &  (Time[i] >= (Time[Ip]-20)):
+              pTAC[i] = (A1+A2+A3)*(Time[i] - Time[Ip] + 20)/20;
+         #Tail      
+          if (Time[i]> (Time[Ip])) :
+              pTAC[i]  = A1* numpy.exp(b1*(Time[i]-Time[Ip])) + A2 * numpy.exp(b2*(Time[i]-Time[Ip])) + A3 * numpy.exp(b3*(Time[i]-Time[Ip]))
       return pTAC
     
   def iniChart(self,title,xlabel,ylabel,lns,cvns,cn):
@@ -1016,13 +1112,18 @@ class dPetBrainQuantificationLogic:
     slicer.mrmlScene.RemoveNode(template)
     return array
 
+
   def pTACestimationIDIF(self,sampleTime,samples,HunterTailfit) :
     #Get hot voxels
     #hotVoxelvalues = self.DataMatrix[:,self.hotvoxelsindex] 
-    CarotidData = self.DataMatrix[:,self.Carotids_array_Mask == 1]
+    CarotidData = self.DataMatrix[:,self.Carotids_array_Mask == 2]
     print('Max hot voxel: ',CarotidData[:,self.hotvoxelsindex[-1]])
     hotVoxelvalues = numpy.mean(CarotidData[:,self.hotvoxelsindex] ,axis=1)
     print('hot voxels values :',hotVoxelvalues)
+    #self.setDoubleArrayNode(self.frameTime, hotVoxelvalues, 'HV_ noCorr')
+    hotVoxelvalues = self.correctHotVoxels(hotVoxelvalues,self.mTis,self.mCar)
+    #self.setDoubleArrayNode(self.frameTime, hotVoxelvalues, 'HV_ Corr')
+    name = ' IDIF '
          
     nsamples = 0
     if (samples != None) & (sampleTime != None):
@@ -1033,6 +1134,9 @@ class dPetBrainQuantificationLogic:
         if HunterTailfit :
             print('FIT CON EXP HUNTER TAIL')
             b_expTail = -float(0.0125/60)
+            name = name + 'Hunt '
+        else:
+            name = name + 'HV'
         #Estimation
         self.pTAC_est = self.estimatepTACgen(self.mTis,self.mCar,self.frameTime,hotVoxelvalues,b_expTail)
         print('pTAC Estimated :' , self.pTAC_est)
@@ -1050,7 +1154,9 @@ class dPetBrainQuantificationLogic:
             print('valor de la muestra : ' , samples[0])
             self.pTAC_est = self.pTAC_est * G
             print('G :',G)
-        return self.frameTime,self.pTAC_est,hotVoxelvalues
+            name = name + ' 1s'
+            self.GainCC = G
+        return self.frameTime,self.pTAC_est,name,hotVoxelvalues
         
           #TWO OR MORE SAMPLES
     if (nsamples > 1) :
@@ -1059,18 +1165,30 @@ class dPetBrainQuantificationLogic:
         print('VTAC_TAIL' ,vTAC_tail)
         print('Samples',samples)
         print('Samples :',samples, ' time :' , sampleTime)
-        self.pTAC_est = self.estimatepTACvSamples(self.mTis,self.mCar,self.frameTime,vTAC_tail,b,hotVoxelvalues)  
-        return self.frameTime,self.pTAC_est,vTAC_tail
+        self.pTAC_est = self.estimatepTACvSamples(self.mTis,self.mCar,self.frameTime,vTAC_tail,b,hotVoxelvalues)
+        name = name + ' 2s'  
+        return self.frameTime,self.pTAC_est,name,vTAC_tail
+    
+  def correctHotVoxels(self,hotvoxel,mTiss,mCar):
+      Corr_HV = hotvoxel
+      for i in range(hotvoxel.size) :
+          if mTiss[i] > hotvoxel[i] :
+              Corr_HV[i] = hotvoxel[i]*mCar[i]/mTiss[i]
               
+      return Corr_HV
+                
   def estimatepTACgen(self,mTis,mCar,Time,hotVoxelvalues,b):
     #get peak index
     Ip = hotVoxelvalues[Time<Time[0] + 90].argmax()
-    TailIndex = Time>Time[Ip]+1200
+    TailIndex = Time>Time[Ip]+1500
+    
     #possible spill in values
     K = numpy.linspace(0,1,100)
     DS = numpy.ones(K.shape)
+    HV = False
     if b == None :
         a,b = self.fitOneExp(Time[TailIndex == 1] - Time[Ip],hotVoxelvalues[TailIndex == 1])
+        HV = True
     print('b :',b)
     print('b del fit ref :', b)
     for i in range(K.size):
@@ -1085,8 +1203,15 @@ class dPetBrainQuantificationLogic:
     print 'Kind2',Kf2   
     print('DS :' , DS) 
     pTAC_est = (mCar - Kf2 * mTis)/(1-Kf2)
+    
+    if HV :
+        A,L = self.fitOneExp(Time[TailIndex == 1]- Time[Ip],pTAC_est[TailIndex == 1])
+        pTAC_est = a*pTAC_est/A
+    else :
+        pTAC_est = hotVoxelvalues[Ip]*pTAC_est/pTAC_est[Ip]
+        
     #Adjust peak with hotvoxels.
-    pTAC_est = self.pTACpeakCorrection(pTAC_est, hotVoxelvalues)
+    #pTAC_est = self.pTACpeakCorrection(pTAC_est, hotVoxelvalues)
     return pTAC_est
       
   def estimatepTACvSamples(self,mTis,mCar,Time,vTAC_tail,b,hotVoxelvalues) :
@@ -1107,7 +1232,7 @@ class dPetBrainQuantificationLogic:
     print 'Kind2',Kf2
     print('vTAC : ',vTAC_tail[TailIndex])
     pTAC_est = ((mCar - Kf2 * mTis)/(1-Kf2))
-    print('Maximo pTAC :', pTAC_est[Ip], 'Maximo de toda la parte carotidas en el pico : ',self.DataMatrix[Ip,self.Carotids_array_Mask == 1].max())
+    print('Maximo pTAC :', pTAC_est[Ip], 'Maximo de toda la parte carotidas en el pico : ',self.DataMatrix[Ip,self.Carotids_array_Mask == 2].max())
     #Adjust peak with hotvoxels.
     pTAC_est = self.pTACpeakCorrection(pTAC_est, hotVoxelvalues) 
     # mx + c = y     
@@ -1115,6 +1240,7 @@ class dPetBrainQuantificationLogic:
     print('D : ',D)
     Gain = numpy.linalg.lstsq(D, vTAC_tail[TailIndex])[0]
     print('Gain_ cross calibration scan-counter: ',Gain)
+    self.GainCC = Gain
     return Gain*pTAC_est
   
   def pTACpeakCorrection(self,pTAC_est,hotVoxelvalues):
@@ -1180,11 +1306,12 @@ class dPetBrainQuantificationLogic:
     #print('pTAC',pTAC)
     self.pTAC_est = numpy.array(pTAC)
     self.pTAC_est.reshape(-1)
+    name = 'PBIF Hunter'
     #print('pTAC',self.pTAC_est)
     #print('pTAC size',self.pTAC_est.size)
     #print('pTAC shape',self.pTAC_est.shape)
     
-    return self.frameTime,self.pTAC_est
+    return self.frameTime,self.pTAC_est,name
 
 #Patlak Functions
 # FUNCIONES  A PASAR 
@@ -1206,7 +1333,7 @@ class dPetBrainQuantificationLogic:
     tolerancia=0.2
     #Primer estimador
     #voxel casi totalmente sin datos, no opero
-    if len(X)<4:
+    if len(X)<2:
         return 0
         self.numInitshort=self.numInitshort+1
     A = numpy.vstack([X, numpy.ones(len(X))]).T      
@@ -1218,32 +1345,47 @@ class dPetBrainQuantificationLogic:
     Y_2=numpy.array(Y[ind])
     X_2=numpy.array(X[ind])
     #voxel casi totalmente sin datos, no opero
-    if len(X_2)<4:
+    if len(X_2)<2:
        return 0
        self.numEndshort=self.numEndshort+1
     A = numpy.vstack([X_2, numpy.ones(len(X_2))]).T      
     K, Vo = numpy.linalg.lstsq(A, Y_2)[0]
     K=numpy.max([K,0])
-    return K*10**8
+    return K*10**6
     
-  def patlak(self,array,DataMatrix,time,pTAC,Mask): #REVISAR MANEJO DE NEGATIVOS Y PUNTOS SIN INFORMACION (Estan entrando conteos o CPET?)
+    
+  def patlak(self,array,DataMatrix,time,pTAC,Mask,bool_voxelwise): #REVISAR MANEJO DE NEGATIVOS Y PUNTOS SIN INFORMACION (Estan entrando conteos o CPET?)
     self.numInitshort=0
     self.numEndshort=0
     #Obtain pTAC integral
     integral=self.cumtrapz(time,pTAC)
-    lateFrame=time>(20*60) # frames later than 20 minutes post injection
+    lateFrame=time>=(20*60) # frames later than 20 minutes post injection
     indFrame=lateFrame.argmax()
     integral=integral[indFrame:]
     pTAC=pTAC[indFrame:]
-    #Operate
-    voxel=numpy.zeros_like(DataMatrix[indFrame:,0])
-    for i in range(Mask.size-1):
-        if Mask[i]:
-            voxel=DataMatrix[indFrame:,i]
-            array[i]=self.patlak_voxel(integral,pTAC,voxel)
-        else:
-            array[i]=0
-    return array
+    
+    if bool_voxelwise:
+        #Operate
+        voxel=numpy.zeros_like(DataMatrix[indFrame:,0])
+        aux_Mask=Mask.astype(bool)
+        for i in range(aux_Mask.size-1):
+            if aux_Mask[i]:
+                voxel=DataMatrix[indFrame:,i]
+                array[i]=self.patlak_voxel(integral,pTAC,voxel)
+            else:
+                array[i]=0
+        return array
+    else:
+        #Operate
+        nLabels=Mask.max()
+        K_vect=numpy.zeros(nLabels+1)
+        for i in range(nLabels+1):
+            region_mean=numpy.mean(DataMatrix[indFrame:,Mask==i],axis = 1)
+            K_vect[i]=self.patlak_voxel(integral,pTAC,region_mean)
+            array[Mask==i]=K_vect[i]
+        return array
+    
+    
     
   def readCSVsamples(self,filename):
     if filename.endswith('.csv'):
@@ -1325,21 +1467,20 @@ class dPetBrainQuantificationLogic:
     array = vtk.util.numpy_support.vtk_to_numpy(vImageData.GetPointData().GetScalars())
     
     #apply Estimation
-    array=self.patlak(array, self.DataMatrix, self.frameTime, pTAC, Mask)
+    array=self.patlak(array, self.DataMatrix, self.frameTime, pTAC, Mask, True)
     KMapScalarVolume.GetImageData().Modified()
     
     self.KMap_array = numpy.zeros(array.shape)
-    self.KMap_array[:] = array/(10 ** 4)
+    self.KMap_array[:] = array/(10 ** 2)
     
     Hist=numpy.histogram(self.KMap_array,50,(self.KMap_array[self.KMap_array>0].min(),self.KMap_array.max()))      
     h_v = Hist[1]
     h_i = Hist[0]
     step = (h_v[1]-h_v[0])/2
     h_v = h_v[0:h_v.shape[0]-1]+step
-    dn = self.setDoubleArrayNode(h_v, h_i, 'Kmap_Histogram')
+    #dn = self.setDoubleArrayNode(h_v, h_i, 'Kmap_Histogram') 
     
-    
-    return KMapScalarVolume
+    return KMapScalarVolume,h_v,h_i
       
   def getpTAC(self,pTACOption,pTAC,tpTAC):
     print 'hello getpTAC'
@@ -1431,16 +1572,16 @@ class ParametersWidget(object):
          
     
     #Connectivity filter
-    connectivityFilterCheckBox = qt.QCheckBox()
-    connectivityFilterCheckBox.setChecked(0)
-    label = qt.QLabel('Apply connectivity filter to the segmentation')
-    self.parent.collapsed = 0
+    #connectivityFilterCheckBox = qt.QCheckBox()
+    #connectivityFilterCheckBox.setChecked(0)
+    #label = qt.QLabel('Apply connectivity filter to the segmentation')
+    #self.parent.collapsed = 0
     #add to CS widgets
-    self.CSwidgets.append(label)
-    self.CSwidgets.append(connectivityFilterCheckBox)
-    parametersFormLayout.addRow(connectivityFilterCheckBox,label)
+    #self.CSwidgets.append(label)
+    #self.CSwidgets.append(connectivityFilterCheckBox)
+    #parametersFormLayout.addRow(connectivityFilterCheckBox,label)
     
-     #Chart Option
+    #Chart Option
     chartCheckBox = qt.QCheckBox()
     chartCheckBox.setChecked(0)
     label = qt.QLabel('Get chart with tissue and carotid mean activity')
@@ -1475,7 +1616,7 @@ class ParametersWidget(object):
     
     if index == 0 :
       #Use previous carotid segmentation
-      carSegCheckBox = qt.QCheckBox()
+      carSegCheckBox = qt.QCheckBox() 
       carSegCheckBox.setChecked(0)
       label = qt.QLabel('Use previous carotid segmentation')
       self.pTACwidgets.append(label)
@@ -1516,12 +1657,12 @@ class ParametersWidget(object):
             
     
     #save pTAC estimated ina .csv
-    savepTACSegCheckBox = qt.QCheckBox()
-    savepTACSegCheckBox.setChecked(0)
-    label = qt.QLabel('Save pTAC estimated in a .csv file')
-    self.pTACwidgets.append(label)
-    self.pTACwidgets.append(savepTACSegCheckBox)           
-    parametersFormLayout.addRow(savepTACSegCheckBox,label)
+    #savepTACSegCheckBox = qt.QCheckBox()
+    #savepTACSegCheckBox.setChecked(0)
+    #label = qt.QLabel('Save pTAC estimated in a .csv file')
+    #self.pTACwidgets.append(label)
+    #self.pTACwidgets.append(savepTACSegCheckBox)           
+    #parametersFormLayout.addRow(savepTACSegCheckBox,label)
      
     #get Chart
     chartCheckBox = qt.QCheckBox()
