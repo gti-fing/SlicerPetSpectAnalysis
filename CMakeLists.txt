@@ -4,12 +4,12 @@ project(PetSpectAnalysis)
 
 #-----------------------------------------------------------------------------
 # Extension meta-information
-set(EXTENSION_HOMEPAGE "http://gti-fing.github.io/PetSpectAnalysis")
+set(EXTENSION_HOMEPAGE "http://gti-fing.github.io/SlicerPetSpectAnalysis")
 set(EXTENSION_CATEGORY "Nuclear Medicine")
 set(EXTENSION_CONTRIBUTORS "Martin Bertran, Natalia Martinez Gil, Guillermo Carbajal, Alvaro Gomez (Facultad de Ingenieria, Uruguay)")
 set(EXTENSION_DESCRIPTION "First Version of the Pet Spect Analysis Extension")
-set(EXTENSION_ICONURL "http://www.example.com/Slicer/Extensions/PetSpectAnalysis.png")
-set(EXTENSION_SCREENSHOTURLS "http://www.example.com/Slicer/Extensions/PetSpectAnalysis/Screenshots/1.png")
+set(EXTENSION_ICONURL "http://www.slicer.org/slicerWiki/images/b/b1/DPetBrainQuantification.png")
+set(EXTENSION_SCREENSHOTURLS "http://www.slicer.org/slicerWiki/images/e/e4/ProcessingBlocks.png http://www.slicer.org/slicerWiki/images/7/76/InformationPanel.png http://www.slicer.org/slicerWiki/images/2/2a/VisualizationPanel.png http://www.slicer.org/slicerWiki/images/2/24/CarotidSegmentation.png http://www.slicer.org/slicerWiki/images/b/bb/CarotidSegmentationROI.png http://www.slicer.org/slicerWiki/images/5/51/PTACEstimationIDIF.png http://www.slicer.org/slicerWiki/images/9/98/PTACEstimationPBIF.png http://www.slicer.org/slicerWiki/images/9/90/KMap.png")
 
 #-----------------------------------------------------------------------------
 # Extension dependencies
