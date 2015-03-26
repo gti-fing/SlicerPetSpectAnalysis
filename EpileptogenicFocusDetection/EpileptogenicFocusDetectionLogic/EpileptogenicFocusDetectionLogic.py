@@ -542,6 +542,22 @@ class EpileptogenicFocusDetectionLogic:
     
     return mascara_nueva   
   
+  # --------------------------------------------------------------------------
+  def applyMaskToVolume(self,inputVolumeNode,labelMaskNode,outputVolumeNode):
+    "Trying to apply mask to volume..."  
+    parameters = {} 
+    parameters['InputVolume'] = inputVolumeNode.GetID() 
+    parameters['MaskVolume'] = labelMaskNode.GetID() 
+    parameters['Label'] = 1 
+    parameters['Replace'] = 0 
+    parameters['OutputVolume'] = outputVolumeNode.GetID() 
+    clinode = slicer.cli.run( slicer.modules.maskscalarvolume, None, parameters, wait_for_completion=True )
+    if not clinode:
+      print('Mask scalar volume failed')
+      return False
+    else:
+      print "Mask succesfully applied"  
+      return True      
   #----------------------------------------------------------------------------
   def subtractImages(self):  
     resta = 100 * (self.normalizedIctalArray - self.normalizedBasalArray)  
