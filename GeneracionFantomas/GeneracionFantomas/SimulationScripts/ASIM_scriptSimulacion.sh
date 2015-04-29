@@ -46,7 +46,7 @@ $SIMUL_DIR/Simul -i $FILE_NAME -o EmSin.yaff -a -E -m 962 -k -p 6,6,g,0 -h -d 3
 $SIMUL_DIR/Simul -i $FILE_NAME -o NormSin.yaff -N -m 962 -k -h
 $NOISE_DIR/Noise -i EmSin.yaff -t $trues -o EmSin_n.yaff
 $NORM_DIR/Normalize -i EmSin_n.yaff -n NormSin.yaff -k -o EmSin_n_norm.yaff
-FBP2D FBP2D_962_M.par
+$STIR_DIR/FBP2D FBP2D_962_M.par
 
 cd ../
 
