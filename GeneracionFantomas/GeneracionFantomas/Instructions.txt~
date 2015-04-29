@@ -1,0 +1,25 @@
+
+Phantom Generation Steps.
+
+In the MatlabCodes folder:
+
+1) Run TACsGenerationScript.m :
+	-This generates a TACs.mat file with the frame Times and the Time activity curves.
+
+2) Run ActivityMapGenScript.m:
+	-Generates the Activity Maps for each frame. The output files are vascFantom_.yaff where _ is frame number and .yaff the format 	 required by ASIM.
+	-Generates the "TrueCounts_list.txt" that specifies the true number of counts to simulate for each frame.
+** This files are stored in a folder called "ActivityOutput". **
+
+3) Inside the folder "ActivityOutput" copy all the files contained in the "SimulationScripts" Folder.
+
+4) Run the ASIM_scriptSimulation.sh file.
+	-This generates one folder for each frame that contains each sinogram and reconstructed image. This folders are called "OutputN_" where "_" is frame number.
+	-Make sure you have previously installed STIR and ASIM and have specified the paths in ASIM_scriptSimulation.sh.
+
+5) Run the store_dPETsimulated.sh file.
+	-This saves all the reconstructed images (ECAT format) in a folder called "dPET_simulated".
+
+
+
+

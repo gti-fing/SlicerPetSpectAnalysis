@@ -1,0 +1,19 @@
+%%MATLAB CODES%%
+
+%Scripts%
+
+-TACsGenerationScript.m: Generates the activity curves and saves them in a .mat file.
+
+-ActivityMapGenScript.m: Generates and saves the ActivityMaps and a .txt file with the true counts for each frame. Must be run after TACsGenerationScript.m.
+
+%Functions%
+
+-pTAC_feng: Generates a pTAC.
+-gentTACs : Generates a tTAC for white and grey matter.
+
+%Files%
+
+-TKMParameters: Compartmental constants file
+-labelmapSimple_noLes.bin: Brain Label map with no lesion in uint8.
+-labelmapSimple_Les.bin: Brain Label map with lesion in uint8.
+
