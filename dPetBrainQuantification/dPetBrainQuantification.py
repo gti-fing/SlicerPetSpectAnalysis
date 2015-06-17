@@ -5,6 +5,9 @@ from __main__ import vtk, qt, ctk, slicer
 import sys, string, numpy
 import SimpleITK
 
+from MultiVolumeImporterLib.Helper import Helper
+from DICOM import *
+
 class dPetBrainQuantification:
   def __init__(self, parent):
     parent.title = "dPetBrainQuantification"
@@ -854,8 +857,8 @@ class dPetBrainQuantificationLogic:
             
     BrainMask_ITKim = BinOpRec.Execute(BrainMask_ITKim)
     
-    BrainMask_ITKim = sitk.BinaryMorphologicalClosing(BrainMask_ITKim , [5, 5, 5])
-    BrainMask_ITKim = sitk.BinaryFillhole(BrainMask_ITKim)
+    BrainMask_ITKim = SimpleITK.BinaryMorphologicalClosing(BrainMask_ITKim , [5, 5, 5])
+    BrainMask_ITKim = SimpleITK.BinaryFillhole(BrainMask_ITKim)
     self.BrainMask = SimpleITK.GetArrayFromImage(BrainMask_ITKim)
     self.BrainMask = self.BrainMask.reshape(-1)
     
