@@ -10,12 +10,14 @@ class dPetBrainQuantification:
     parent.title = "dPetBrainQuantification"
     parent.categories = ["Quantification"]
     parent.dependencies = []
-    parent.contributors = ["Idk"] # replace with "Firstname Lastname (Org)"
+    parent.contributors = ["Martin Bertran, Natalia Martinez, Guillermo Carbajal, Alvaro Gomez"] # replace with "Firstname Lastname (Org)"
     parent.helpText = """
-    Test: A partir de un multivolume extrae las frames y las recorta, ademas despliega
+    This module allows the quantization of dynamic PET (dPET) brain scans. It is optimized to work with FDG tracer.
+    It is possible to segment relevant blood pools, derive pTAC, and perform voxel or region based Patlak analysis.
+    Module description can be found in: http://www.slicer.org/slicerWiki/index.php/Documentation/Nightly/Modules/dPetBrainQuantification
     """
     parent.acknowledgementText = """
-    idk""" # replace with organization, grant and thanks.
+    This work was supported by Comision Sectorial de Investigacion Cientifica (CSIC, Universidad de la Republica, Uruguay) under program "Proyecto de Inclusion Social".""" # replace with organization, grant and thanks.
     self.parent = parent
     
 class dPetBrainQuantificationWidget:
