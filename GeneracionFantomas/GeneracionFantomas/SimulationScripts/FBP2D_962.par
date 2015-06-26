@@ -1,0 +1,14 @@
+fbp2dparameters :=
+input file := hdr_E_m962.hs
+output filename prefix := RECSALIDA
+;  output image parameters
+;  zoom defaults to 1
+zoom := 1
+;  image size defaults to whole FOV
+xy output image size (in pixels) := -1
+;  default means: call SSRB only if no axial compression is already present 
+num segments to combine with ssrb := 5
+;  filter parameters, default to pure ramp
+alpha parameter for ramp filter := 0.5
+cut-off for ramp filter (in cycles) := 0.5
+end :=

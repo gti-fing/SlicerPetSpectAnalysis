@@ -1,0 +1,14 @@
+%%MATLAB CODES%%
+
+%Scripts%
+
+-TACsGenerationScript.m: Generates the activity curves and saves them in a .mat file.
+
+-ActivityMapGenScript.m: Generates and saves the ActivityMaps and a .txt file with the true counts for each frame.
+
+%Functions%
+
+-pTAC_feng: Generates a pTAC.
+-gentTACs : Generates a tTAC for white and grey matter.
+
+

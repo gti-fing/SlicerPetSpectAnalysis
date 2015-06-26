@@ -1,0 +1,15 @@
+Scripts:
+
+*ASIM_scriptSimulation.sh:
+	-Generates one folder for each frame that contains each sinogram and reconstructed image. This folders are called "OutputN_" where "_" is frame number.
+
+*store_dPETsimulated.sh:
+	-Saves all the reconstructed images (ECAT format) in a folder called "dPET_simulated".
+
+
+Files:
+
+*962: ECAT 962 Scanner specifications provided by ASIM.
+*header.yhdr: Header for the activity images.
+*hdr_E_m962.hs : Header for the simulated sinograms.
+*FBP2D_962: Specification file for FBP2D reconstruction.
