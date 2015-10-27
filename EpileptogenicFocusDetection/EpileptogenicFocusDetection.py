@@ -762,7 +762,6 @@ class EpileptogenicFocusDetectionSlicelet(object):
       maskVolumeNode=slicer.util.getNode(self.logic.BASAL_ICTAL_MASK_NAME)
       subtractionOutputVolumeNode=slicer.util.getNode(self.logic.ICTAL_BASAL_SUBTRACTION)
       if maskVolumeNode is not None:
-        maskVolumeNode.SetLabelMap(True)  
         self.logic.applyMaskToVolume(subtractionOutputVolumeNode,maskVolumeNode,subtractionOutputVolumeNode)  
       self.computeStdDevSISCOMSliderBounds(subtractionOutputVolumeNode,maskVolumeNode)
       # creates a new colormap

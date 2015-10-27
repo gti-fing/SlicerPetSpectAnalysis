@@ -305,6 +305,12 @@ class EpileptogenicFocusDetectionLogic:
     self.info.hide()
     
     
+  # ----------------------------------------------------------------------------------
+  def setVolumeAndLabelNodeInViews(self,volumeNode,labelNode):
+    selectionNode = slicer.app.applicationLogic().GetSelectionNode()
+    selectionNode.SetReferenceActiveVolumeID( volumeNode.GetID() )
+    selectionNode.SetReferenceActiveLabelVolumeID( labelNode.GetID() )
+    slicer.app.applicationLogic().PropagateVolumeSelection(0)
   # ---------------------------------------------------------------------------
   def generateMask(self, basalVolumeNode, ictalVolumeNode, threshold, zmax):   
     '''
@@ -385,7 +391,7 @@ class EpileptogenicFocusDetectionLogic:
     maskArray = slicer.util.array(maskVolumeNode.GetName())
     maskArray[:] = mask
     maskVolumeNode.GetImageData().Modified()
-    maskVolumeNode.SetLabelMap(True)  
+    #maskVolumeNode.SetLabelMap(True)  
     dn = maskVolumeNode.GetDisplayNode()
     dn.SetAndObserveColorNodeID('vtkMRMLColorTableNodeLabels')
     
