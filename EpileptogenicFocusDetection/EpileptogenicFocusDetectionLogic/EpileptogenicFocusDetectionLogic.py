@@ -300,10 +300,9 @@ class EpileptogenicFocusDetectionLogic:
     l.start()
     self.info.show()
     while (self.IsBasalIctalMaskComputed == False):
-      slicer.app.processEvents()   
-    return     
-    self.info.hide()
-    
+      slicer.app.processEvents()    
+  
+    self.info.hide() 
     
   # ----------------------------------------------------------------------------------
   def setVolumeAndLabelNodeInViews(self,volumeNode,labelNode):
@@ -371,37 +370,47 @@ class EpileptogenicFocusDetectionLogic:
     print "ictal normalization factor= " + str(ictal_normalization_factor)
     self.normalizedBasalArray[:] = np.double(basalArray) / basal_normalization_factor
     self.normalizedIctalArray[:] = np.double(ictalArray) / ictal_normalization_factor
-    
-    
+     
+     
     max_norm_basal = self.normalizedBasalArray.max()    
     max_norm_ictal = self.normalizedIctalArray.max()  
     print "max basal normalized= " + str(max_norm_basal)
     print "max ictal normalized= " + str(max_norm_ictal)
     basalMask = self.normalizedBasalArray > 0.4 * max_norm_basal
     ictalMask = self.normalizedIctalArray > 0.4 * max_norm_ictal
-    
+     
+    print "Volume node = " + basalVolumeNode.GetName() + "\n"
     # Create the masks
     mask = basalMask * ictalMask
+    
     maskVolumeNode = slicer.util.getNode(self.BASAL_ICTAL_MASK_NAME)
     if maskVolumeNode == None:
       volLogic = slicer.modules.volumes.logic()
-      maskVolumeNode = volLogic.CloneVolume(basalVolumeNode, self.BASAL_ICTAL_MASK_NAME)
+      maskVolumeNode = volLogic.CloneVolume(basalVolumeNode,self.BASAL_ICTAL_MASK_NAME)
+      #maskVolumeNode = volLogic.CreateAndAddLabelVolume(slicer.mrmlScene,basalVolumeNode,self.BASAL_ICTAL_MASK_NAME)
+      #maskVolumeNode.SetAndObserveImageData(scalarVolume.GetImageData())
+      #slicer.mrmlScene.RemoveNode(scalarVolume)
       maskVolumeNode.SetName(self.BASAL_ICTAL_MASK_NAME)
-    slicer.app.processEvents()
+      #slicer.mrmlScene.AddNode(maskVolumeNode)
+     
     maskArray = slicer.util.array(maskVolumeNode.GetName())
     maskArray[:] = mask
     maskVolumeNode.GetImageData().Modified()
-    #maskVolumeNode.SetLabelMap(True)  
+     #maskVolumeNode.SetLabelMap(True)  
+      
     dn = maskVolumeNode.GetDisplayNode()
     dn.SetAndObserveColorNodeID('vtkMRMLColorTableNodeLabels')
-    
-    # Fill the holes in the mask
+      
+     # Fill the holes in the mask
     rawMask = slicer.util.array(self.BASAL_ICTAL_MASK_NAME)
     mask = self.fillMask(rawMask, 4, 2)
     maskArray = slicer.util.array(maskVolumeNode.GetName())
     maskArray[:] = mask
     maskVolumeNode.GetImageData().Modified()
     self.IsBasalIctalMaskComputed = True
+
+    #self.setVolumeAndLabelNodeInViews(basalVolumeNode, maskVolumeNode)
+    
     return self.IsBasalIctalMaskComputed
 
   #--------------------------------------------------------------------------------  
@@ -944,12 +953,18 @@ class EpileptogenicFocusDetectionLogic:
     # automatically select the volume to display
     selectionNode = slicer.app.applicationLogic().GetSelectionNode()
     volumeNode = slicer.util.getNode(volumeName)
-    if not volumeNode == None:
+    if volumeNode is not None:
       volumeID = volumeNode.GetID()
     else:
       volumeID = None
     selectionNode.SetReferenceActiveVolumeID(volumeID)
-    slicer.app.applicationLogic().PropagateVolumeSelection()
+    slicer.app.applicationLogic().PropagateVolumeSelection(0)
+    
+
+    
+#     self.displayVolumeInSlice(volumeName, 'Red', 'Axial', True)
+#     self.displayVolumeInSlice(volumeName, 'Yellow', 'Sagittal', True)
+#     self.displayVolumeInSlice(volumeName, 'Green', 'Coronal', True)
   
   # ---------------------------------------------------------------------------
   # tomado de EditUtil.py

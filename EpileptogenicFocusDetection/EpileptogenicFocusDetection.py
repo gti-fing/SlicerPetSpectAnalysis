@@ -664,10 +664,11 @@ class EpileptogenicFocusDetectionSlicelet(object):
       self.info.show()
       while (self.logic.IsBasalIctalMaskComputed == False):
         slicer.app.processEvents()  
-        time.sleep(1) 
+        #time.sleep(1) 
       #self.logic.runGenerateMask(basalVolumeNode,registeredIctalNode,0.4,1)
       self.info.hide() 
       self.logic.displayVolume(self.logic.BASAL_ICTAL_MASK_NAME)
+      slicer.app.processEvents()
       self.checkBasalAndIctalMaskButton.setEnabled(self.logic.IsBasalIctalMaskComputed)
     else:
       print "It was not possible to find the registered-ictal node!"  
@@ -720,7 +721,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
         if (subtractionOutputVolumeNode is not None) and (maskVolumeNode is not None):
           self.computeStdDevSISCOMSliderBounds(subtractionOutputVolumeNode,maskVolumeNode )
           self.showActivations(self.backgroundVolumeNode, self.SISCOMForegroundVolumeNode) 
- 
+      print "End of onStep3_fociDetectionCollapsibleButtonClicked"
           
   def onStep3A_SISCOMDetectionCollapsibleButtonClicked(self, collapsed):
     self.onSiscomHideOverlayButtonClicked()
@@ -820,8 +821,8 @@ class EpileptogenicFocusDetectionSlicelet(object):
   #---------------------------------------------------------------------------------------------------------------  
    
   def onSiscomHideOverlayButtonClicked(self):
-    self.generateOverlay(1, 1)  
     self.layoutWidget.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutConventionalView)   
+    self.generateOverlay(1, 1)  
     self.siscomHideOverlayButton.setEnabled(False)       
     
   #---------------------------------------------------------------------------------------------------------------
