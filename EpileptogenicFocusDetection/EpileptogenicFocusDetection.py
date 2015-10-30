@@ -931,8 +931,9 @@ class EpileptogenicFocusDetectionSlicelet(object):
     l = threading.Thread(target=self.aContrarioDetection.runAContrario)
     l.setDaemon(True)
     l.start()  
+    self.aContrarioDetection.IsAContrarioRunning = True
     self.aContrarioProgressFrame.show()  
-    while ((self.aContrarioDetection.IsAContrarioOutput == False) and (self.suspendAContrario == False)):
+    while ((self.aContrarioDetection.IsAContrarioRunning == True) and (self.suspendAContrario == False)):
       time.sleep(0.3)  
       self.currentStatusLabel.setText(self.aContrarioDetection.userMessage)    
       slicer.app.processEvents()  
@@ -1099,6 +1100,7 @@ class EpileptogenicFocusDetectionWidget:
   def onShowSliceletButtonClicked(self): 
     if not self.mainFrame:   
       self.mainFrame = SliceletMainFrame()
+      self.mainFrame.windowTitle = "Epileptogenic Focus Detection"
       self.mainFrame.setMinimumWidth(1200)
       self.mainFrame.connect('destroyed()', self.onSliceletClosed)
       slicelet = EpileptogenicFocusDetectionSlicelet(self.mainFrame)
@@ -1106,7 +1108,6 @@ class EpileptogenicFocusDetectionWidget:
 
     # Make the slicelet reachable from the Slicer python interactor for testing
     # TODO: Should be uncommented for testing
-    # slicer.gelDosimetrySliceletInstance = slicelet
 
   def onSliceletClosed(self):
     print('Slicelet closed')
