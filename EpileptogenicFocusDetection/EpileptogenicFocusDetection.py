@@ -337,11 +337,13 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.SISCOMDetectionButton.toolTip = "Perform the subtraction of the images: ictal - basal"
     self.SISCOMDetectionButton.name = "SISCOMDetectionButton"
     self.SISCOMDetectionButton.setEnabled(False)
+    self.SISCOMDetectionButton.setVisible(True)
     self.step3A_SISCOMDetectionCollapsibleButtonLayout.addRow('Foci detection: ', self.SISCOMDetectionButton)
     
     # SISCOM Threshold frame    
     self.stdDevSISCOMSlider=ctk.ctkSliderWidget()
     self.stdDevSISCOMSlider.setEnabled(False)
+    self.stdDevSISCOMSlider.setVisible(True)
     
     #self.step3A_SISCOMDetectionCollapsibleButtonLayout.addRow('Visualization threshold: ', self.thresholdSISCOMFrame)
     self.step3A_SISCOMDetectionCollapsibleButtonLayout.addRow('Standard deviations threshold: ', self.stdDevSISCOMSlider)
@@ -352,6 +354,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
     overlayLayout = qt.QHBoxLayout()
     self.siscomOverlayButton = qt.QPushButton("Generate")
     self.siscomOverlayButton.setEnabled(False)
+    self.siscomOverlayButton.setVisible(True)
     self.siscomOverlayFrame.setLayout(overlayLayout)
     rowsLabel=qt.QLabel("Rows:")
     colsLabel=qt.QLabel("Cols:") 
@@ -361,6 +364,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.siscomColsText.setFixedWidth(50)
     self.siscomHideOverlayButton = qt.QPushButton("Hide")
     self.siscomHideOverlayButton.setEnabled(False)
+    self.siscomHideOverlayButton.setVisible(True)
     overlayLayout.addWidget(self.siscomOverlayButton)
     overlayLayout.addWidget(rowsLabel)
     overlayLayout.addWidget(self.siscomRowsText)
@@ -386,6 +390,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.aContrarioDetectionButton.toolTip = "Perform a-contrario detection"
     self.aContrarioDetectionButton.name = "aContrarioDetectionButton"
     self.aContrarioDetectionButton.setEnabled(False)
+    self.aContrarioDetectionButton.setVisible(True)
     self.step3B_AContrarioDetectionCollapsibleButtonLayout.addRow('Foci detection: ', self.aContrarioDetectionButton)
     
     #
@@ -421,6 +426,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
     overlayLayout = qt.QHBoxLayout()
     self.aContrarioOverlayButton = qt.QPushButton("Generate overlay")
     self.aContrarioOverlayButton.setEnabled(False)
+    self.aContrarioOverlayButton.setVisible(True)
     self.aContrarioOverlayFrame.setLayout(overlayLayout)
     rowsLabel=qt.QLabel("Rows:")
     colsLabel=qt.QLabel("Cols:") 
@@ -430,6 +436,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.aContrarioColsText.setFixedWidth(50)
     self.aContrarioHideOverlayButton = qt.QPushButton("Hide")
     self.aContrarioHideOverlayButton.setEnabled(False)
+    self.aContrarioHideOverlayButton.setVisible(True)
     overlayLayout.addWidget(self.aContrarioOverlayButton)
     overlayLayout.addWidget(rowsLabel)
     overlayLayout.addWidget(self.aContrarioRowsText)
@@ -441,6 +448,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
     
     #self.step3B_AContrarioDetectionCollapsibleButtonLayout.addRow('Overlay: ', self.overlayFrame)
     self.advanced_AContrarioDetectionCollapsibleButton = ctk.ctkCollapsibleButton()
+    self.advanced_AContrarioDetectionCollapsibleButton.setVisible(True)
     self.advanced_AContrarioDetectionCollapsibleButton.setProperty('collapsedHeight', 4)
     self.advanced_AContrarioDetectionCollapsibleButton.text = "Advanced"
     self.advanced_AContrarioDetectionCollapsibleButton.setProperty('collapsed', True)
@@ -501,6 +509,7 @@ class EpileptogenicFocusDetectionSlicelet(object):
     self.compareDetectionsButton.toolTip = "Compare SISCOM and A-contrario detections"
     self.compareDetectionsButton.name = "compareDetectionsButton"
     self.compareDetectionsButton.setEnabled(False)
+    self.compareDetectionsButton.setVisible(True)
     self.step3C_CompareDetectionsCollapsibleButtonLayout.addRow('Compare SISCOM and A-contrario detections: ', self.compareDetectionsButton)
     
     

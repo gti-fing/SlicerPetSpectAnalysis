@@ -812,8 +812,8 @@ class EpileptogenicFocusDetectionLogic:
     else:
       numberOfHotColors = 0  
       
-    print "number of cool colors = " + str(numberOfCoolColors)  
-    print "number of hot colors (including zero) = " + str(numberOfHotColors)
+    #print "number of cool colors = " + str(numberOfCoolColors)  
+    #print "number of hot colors (including zero) = " + str(numberOfHotColors)
     
     colorNode = slicer.util.getNode(self.FOCI_DETECTION_COLORMAP_NAME)
     if colorNode is None:
@@ -836,7 +836,7 @@ class EpileptogenicFocusDetectionLogic:
     for colorIndex in xrange(0, numberOfCoolColors):
       r = np.double(numberOfCoolColors - 1 - colorIndex) / (numberOfCoolColors)  
       colorNode.SetColor(colorIndex, r, 1 - r, 1, 1.0);  
-      print "cool color index = " + str(colorIndex)
+      #print "cool color index = " + str(colorIndex)
    
     
     
@@ -853,7 +853,7 @@ class EpileptogenicFocusDetectionLogic:
     
     for colorIndex in xrange(0, numberOfHotColors):
       colorNode.SetColor(numberOfCoolColors + colorIndex, r[colorIndex], g[colorIndex], b[colorIndex], 1.0); 
-      print "hot color index = " + str(numberOfCoolColors + colorIndex)
+      #print "hot color index = " + str(numberOfCoolColors + colorIndex)
     colorNode.SetOpacity(numberOfCoolColors, 0);  
 
     '''
