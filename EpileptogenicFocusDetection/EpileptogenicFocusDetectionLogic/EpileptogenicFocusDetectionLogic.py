@@ -310,6 +310,8 @@ class EpileptogenicFocusDetectionLogic:
     selectionNode.SetReferenceActiveVolumeID( volumeNode.GetID() )
     selectionNode.SetReferenceActiveLabelVolumeID( labelNode.GetID() )
     slicer.app.applicationLogic().PropagateVolumeSelection(0)
+    
+    
   # ---------------------------------------------------------------------------
   def generateMask(self, basalVolumeNode, ictalVolumeNode, threshold, zmax):   
     '''
