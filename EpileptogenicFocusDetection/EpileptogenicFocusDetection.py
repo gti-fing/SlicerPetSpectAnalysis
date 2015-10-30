@@ -1099,14 +1099,13 @@ class EpileptogenicFocusDetectionWidget:
   def onShowSliceletButtonClicked(self): 
     if not self.mainFrame:   
       self.mainFrame = SliceletMainFrame()
+      self.mainFrame.windowTitle = "Epileptogenic Focus Detection"
       self.mainFrame.setMinimumWidth(1200)
       self.mainFrame.connect('destroyed()', self.onSliceletClosed)
       slicelet = EpileptogenicFocusDetectionSlicelet(self.mainFrame)
       self.mainFrame.setSlicelet(slicelet)
 
     # Make the slicelet reachable from the Slicer python interactor for testing
-    # TODO: Should be uncommented for testing
-    # slicer.gelDosimetrySliceletInstance = slicelet
 
   def onSliceletClosed(self):
     print('Slicelet closed')
