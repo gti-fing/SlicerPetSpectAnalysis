@@ -1,9 +1,12 @@
 #-----------------------------------------------------------------------------
-set(MODULE_NAME EpilepsyPythonModule)
+set(MODULE_NAME EpileptogenicFocusDetection)
 
 #-----------------------------------------------------------------------------
 set(MODULE_PYTHON_SCRIPTS
   ${MODULE_NAME}.py
+  ${MODULE_NAME}Logic/EpileptogenicFocusDetectionLogic.py
+  ${MODULE_NAME}Logic/AContrarioLogic.py
+  ${MODULE_NAME}Logic/__init__.py
   )
 
 set(MODULE_PYTHON_RESOURCES
