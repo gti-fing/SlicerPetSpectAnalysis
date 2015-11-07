@@ -368,20 +368,20 @@ class EpileptogenicFocusDetectionLogic:
     intersection_region = intersection_map > 0 
     basal_normalization_factor = basalArray[intersection_region].mean()
     ictal_normalization_factor = ictalArray[intersection_region].mean()
-    print "basal normalization factor= " + str(basal_normalization_factor)
-    print "ictal normalization factor= " + str(ictal_normalization_factor)
+    #print "basal normalization factor= " + str(basal_normalization_factor)
+    #print "ictal normalization factor= " + str(ictal_normalization_factor)
     self.normalizedBasalArray[:] = np.double(basalArray) / basal_normalization_factor
     self.normalizedIctalArray[:] = np.double(ictalArray) / ictal_normalization_factor
      
      
     max_norm_basal = self.normalizedBasalArray.max()    
     max_norm_ictal = self.normalizedIctalArray.max()  
-    print "max basal normalized= " + str(max_norm_basal)
-    print "max ictal normalized= " + str(max_norm_ictal)
+    #print "max basal normalized= " + str(max_norm_basal)
+    #print "max ictal normalized= " + str(max_norm_ictal)
     basalMask = self.normalizedBasalArray > 0.4 * max_norm_basal
     ictalMask = self.normalizedIctalArray > 0.4 * max_norm_ictal
      
-    print "Volume node = " + basalVolumeNode.GetName() + "\n"
+    #print "Volume node = " + basalVolumeNode.GetName() + "\n"
     # Create the masks
     mask = basalMask * ictalMask
     
