@@ -315,7 +315,8 @@ class dPetBrainQuantificationWidget:
   def onInputChanged(self):
     self.mvNode = self.mvSelector.currentNode()
     if self.mvNode != None:
-      Helper.SetBgFgVolumes(self.mvNode.GetID(), None)
+      #Helper.SetBgFgVolumes(self.mvNode.GetID(), None)
+      Helper.SetBgFgVolumes(self.mvNode.GetID(), [])
       nFrames = self.mvNode.GetNumberOfFrames()
       self.frameSlider.minimum = 0
       self.frameSlider.maximum = nFrames-1
@@ -349,10 +350,11 @@ class dPetBrainQuantificationWidget:
     DICOMWidget().enter()
           
   def onDisplayBrainMask(self):
-    if self.lastLogic.BrainMask == None :
+    if self.lastLogic.BrainMask is None :
         return
-    if self.mvNode != None :
-        Helper.SetBgFgVolumes(self.mvNode.GetID(), None)
+    if self.mvNode is not None :
+        #Helper.SetBgFgVolumes(self.mvNode.GetID(), None)
+        Helper.SetBgFgVolumes(self.mvNode.GetID(), [])
         
     BrainMaskVolume = self.lastLogic.getBrainMaskVolume()
     BrainMaskVolume.SetScene(slicer.mrmlScene)
@@ -375,8 +377,13 @@ class dPetBrainQuantificationWidget:
     if index < 0:
             return
     self.CarSegmParameters.CreateCSParameters(index)
+    if index==1:
+        roi = slicer.util.getNode('AnnotationROI')
+        if roi is not None: # added GC
+            roi.GetDisplayNode().SetVisibility(True)  # added GC
     if self.mvNode != None :
-        Helper.SetBgFgVolumes(self.mvNode.GetID(), None)
+        #Helper.SetBgFgVolumes(self.mvNode.GetID(), None)
+        Helper.SetBgFgVolumes(self.mvNode.GetID(), [])
         nFrames = self.mvNode.GetNumberOfFrames()
         self.CarSegmParameters.CSwidgets[-1].setChecked(1)
         self.CarSegmParameters.CSwidgets[-3].maximum = nFrames-1
@@ -415,6 +422,8 @@ class dPetBrainQuantificationWidget:
                 self.lns = slicer.mrmlScene.GetNodesByClass('vtkMRMLLayoutNode')
                 self.cvns = slicer.mrmlScene.GetNodesByClass('vtkMRMLChartViewNode')
                 self.cn = slicer.mrmlScene.AddNode(slicer.vtkMRMLChartNode())
+                #self.cvns = slicer.mrmlScene.GetNodesByClass('vtkMRMLPlotChartViewNode')
+                #self.cn = slicer.mrmlScene.AddNode(slicer.vtkMRMLPlotChartNode())
                 self.Chart = True
             else :
                 self.cn.ClearArrays()  
@@ -476,8 +485,10 @@ class dPetBrainQuantificationWidget:
     #CHART
     if not(self.Chart):
         self.lns = slicer.mrmlScene.GetNodesByClass('vtkMRMLLayoutNode')
-        self.cvns = slicer.mrmlScene.GetNodesByClass('vtkMRMLChartViewNode')
-        self.cn = slicer.mrmlScene.AddNode(slicer.vtkMRMLChartNode())
+        self.cvns = slicer.mrmlScene.GetNodesByClass('vtkMRMLChartViewNode')  # commented GC
+        self.cn = slicer.mrmlScene.AddNode(slicer.vtkMRMLChartNode())  # commented GC
+        #self.cvns = slicer.mrmlScene.GetNodesByClass('vtkMRMLPlotChartViewNode')
+        #self.cn = slicer.mrmlScene.AddNode(slicer.vtkMRMLPlotChartNode())
         self.Chart = True
     else :
         self.cn.ClearArrays()
@@ -553,8 +564,10 @@ class dPetBrainQuantificationWidget:
         #CHART
     if not(self.Chart):
         self.lns = slicer.mrmlScene.GetNodesByClass('vtkMRMLLayoutNode')
-        self.cvns = slicer.mrmlScene.GetNodesByClass('vtkMRMLChartViewNode')
-        self.cn = slicer.mrmlScene.AddNode(slicer.vtkMRMLChartNode())
+        self.cvns = slicer.mrmlScene.GetNodesByClass('vtkMRMLChartViewNode')  # commented GC
+        self.cn = slicer.mrmlScene.AddNode(slicer.vtkMRMLChartNode())  # commented GC
+        #self.cvns = slicer.mrmlScene.GetNodesByClass('vtkMRMLPlotChartViewNode')
+        #self.cn = slicer.mrmlScene.AddNode(slicer.vtkMRMLPlotChartNode())
         self.Chart = True
     else :
         self.cn.ClearArrays()
@@ -664,7 +677,7 @@ class dPetBrainQuantificationLogic:
     # Automatic Segmentation #
     ##########################
     
-    if roi == None :
+    if roi is None :
       #Mean Brain activity and Variance
       CVar = numpy.var(self.DataMatrix[:,self.BrainMask>0],axis = 1)
       #peak index
@@ -696,7 +709,7 @@ class dPetBrainQuantificationLogic:
       IntensityMask[(DTOtsu_array > 1)] = 1
       aCorrelation = self.corrDatapTAC(self.DataMatrix,IntensityMask,pTAC_gen)
       #Correlation threshold is 50% 
-      CorrUm = 0.5
+      CorrUm = 0.1  # commented GC, default 0.5
       Carotids_array_Mask = numpy.zeros(aCorrelation.size)
       Carotids_array_Mask[(aCorrelation>CorrUm) & (DTOtsu_array == 2)] = 1
             
@@ -705,7 +718,7 @@ class dPetBrainQuantificationLogic:
     # ROI Based segmentation #
     ##########################
     
-    if roi != None :
+    if roi is not None :
       #segmentatio type
       segmType = 1
       #Get ROI Data
@@ -736,33 +749,38 @@ class dPetBrainQuantificationLogic:
     ###########        
     Carotids_array_Mask= Carotids_array_Mask.reshape([self.Dim[2],self.Dim[1],self.Dim[0]])
             
-    #Cast Image
+    # #Cast Image
     castFilter = SimpleITK.CastImageFilter()
     castFilter.SetOutputPixelType(2)
-    carotid_castITKim = castFilter.Execute(SimpleITK.GetImageFromArray(Carotids_array_Mask))
-            
-    #BinaryOpening By Reconstruction
+    carotid_castITKim = castFilter.Execute(SimpleITK.GetImageFromArray(Carotids_array_Mask))  # modified GC
+
+    # #BinaryOpening By Reconstruction
     BinOpRec = SimpleITK.BinaryOpeningByReconstructionImageFilter()
     BinOpRec.SetKernelType(BinOpRec.Ball)
-    BinOpRec.SetKernelRadius([1,1,1])
+    BinOpRec.SetKernelRadius([0,1,0])
     BinOpRec.SetForegroundValue(1)
     BinOpRec.SetBackgroundValue(0)
-            
+    #
     CarotidBinOpRec_Img = BinOpRec.Execute(carotid_castITKim)
     Carotids_array_Mask = SimpleITK.GetArrayFromImage(CarotidBinOpRec_Img)
 
+    #
     Dilate = SimpleITK.BinaryDilateImageFilter()
     Dilate.Ball
     Dilate.SetKernelRadius([2,2,2])
-    DilateImg = Dilate.Execute(SimpleITK.GetImageFromArray(Carotids_array_Mask))
+    #DilateImg = Dilate.Execute(SimpleITK.GetImageFromArray(Carotids_array_Mask))  # commented GC
+    DilateImg = Dilate.Execute(SimpleITK.GetImageFromArray(Carotids_array_Mask.astype(numpy.short))) # modified GC
     Dilate_array = SimpleITK.GetArrayFromImage(DilateImg)
     Dilate_array[Carotids_array_Mask > 0] = 2
     Carotids_array_Mask = Dilate_array.reshape(-1)
-        
-    self.mTis = numpy.mean(self.DataMatrix[:,Carotids_array_Mask==1],axis = 1)
-    self.mCar = numpy.mean(self.DataMatrix[:,Carotids_array_Mask==2],axis = 1)
-               
-    #
+
+    #self.mTis = numpy.mean(self.DataMatrix[:, Carotids_array_Mask == 1], axis=1)  # commented GC
+    #self.mCar = numpy.mean(self.DataMatrix[:, Carotids_array_Mask == 2], axis=1)  # commented GC
+
+    self.mTis = numpy.mean(self.DataMatrix[:,(Carotids_array_Mask==1).flatten()],axis = 1)  # commented GC (changed 1 to 0)
+    self.mCar = numpy.mean(self.DataMatrix[:,(Carotids_array_Mask==2).flatten()],axis = 1)  # commented GC (changed 2 to 1)
+
+
     #Mask Volume
     #
     self.Carotids_array_Mask = Carotids_array_Mask
@@ -771,14 +789,16 @@ class dPetBrainQuantificationLogic:
     Mask.SetName(name)
     Mask_Image = Mask.GetImageData()
     Mask_array = vtk.util.numpy_support.vtk_to_numpy(Mask_Image.GetPointData().GetScalars())
-    Mask_array[:] = self.Carotids_array_Mask
+    Mask_array[:] = self.Carotids_array_Mask   # commented GC
+    #Mask_array.data = self.Carotids_array_Mask
     Mask_Image.Modified()
     #Segmentation Done
     self.CarSegm = True
     
     #hot voxels index
     peak_index = self.mCar[0:firstFr+1].argmax()
-    sortPeakCarotid = self.DataMatrix[peak_index,Carotids_array_Mask == 2].argsort()
+    #sortPeakCarotid = self.DataMatrix[peak_index,Carotids_array_Mask == 2].argsort()  # commented GC
+    sortPeakCarotid = self.DataMatrix[peak_index, (Carotids_array_Mask == 2).flatten()].argsort() # commented GC
     minIndex = -1 * int(sortPeakCarotid.size*0.05)
     self.hotvoxelsindex = sortPeakCarotid[minIndex:]
     
@@ -928,7 +948,8 @@ class dPetBrainQuantificationLogic:
             r_min = 0
     if r_max == None :
             r_max = array[:,1].size - 1
-    if w == None :
+    #if w == None :
+    if w is None:
             k = (r_max + 1 - r_min)
             w = numpy.ones(array[0,:].size)*k
             
@@ -986,8 +1007,10 @@ class dPetBrainQuantificationLogic:
     cn.SetProperty('default', 'xAxisLabel', xlabel)
     cn.SetProperty('default', 'yAxisLabel', ylabel)
     cvn = cvns.GetNextItemAsObject()
+    if cvn is None:   # added GC
+      cvn = cvns.GetNextItemAsObject(0)  # added GC
     cvn.SetChartNodeID(cn.GetID())
-    
+
   def addChart(self,x,y,Name,cn,cvns):
     dn = self.setDoubleArrayNode(x, y,Name)    
     cn.AddArray(Name, dn.GetID())
@@ -1029,12 +1052,12 @@ class dPetBrainQuantificationLogic:
     #obtengo intervalos maximos y minimos de indices validos
     ijk=numpy.vstack([corner1IJK,corner2IJK])
     #print ijk
-    i_min=numpy.min(ijk[:,0])
-    i_max=numpy.max(ijk[:,0])
-    j_min=numpy.min(ijk[:,1])
-    j_max=numpy.max(ijk[:,1])
-    k_min=numpy.min(ijk[:,2])
-    k_max=numpy.max(ijk[:,2])
+    i_min=int(numpy.max([numpy.min(ijk[:,0]),0]))
+    i_max=int(numpy.max(ijk[:,0]))
+    j_min=int(numpy.max([numpy.min(ijk[:,1]),0]))
+    j_max=int(numpy.max(ijk[:,1]))
+    k_min=int(numpy.max([numpy.min(ijk[:,2]),0]))
+    k_max=int(numpy.max(ijk[:,2]))
    
     template.SetScene(slicer.mrmlScene)
     slicer.mrmlScene.AddNode(template)
@@ -1220,10 +1243,12 @@ class dPetBrainQuantificationLogic:
 
   def cumtrapz(self,t,y):#Trapezoidal cumulative integral
     endt=t.size-1
-    auxt1=numpy.concatenate(([0],t[0:endt]),axis=1)
+    #auxt1=numpy.concatenate(([0],t[0:endt]),axis=1) # commented GC
+    auxt1 = numpy.concatenate(([0], t[0:endt]))
     deltat=t-auxt1
     endy=y.size-1
-    auxy1=numpy.concatenate(([0],y[0:endy]),axis=1)
+    #auxy1=numpy.concatenate(([0],y[0:endy]),axis=1) # commented GC
+    auxy1 = numpy.concatenate(([0], y[0:endy]))
     trapecio=(y+auxy1)/2
     trapecio=trapecio*deltat
     return trapecio.cumsum()
