@@ -420,8 +420,9 @@ class dPetBrainQuantificationWidget:
             frameTime = self.lastLogic.frameTime
             if not(self.Chart):
                 self.lns = slicer.mrmlScene.GetNodesByClass('vtkMRMLLayoutNode')
-                self.cvns = slicer.mrmlScene.GetNodesByClass('vtkMRMLChartViewNode')
+                self.cvns = slicer.mrmlScene.GetNodesByClass('vtkMRMLChartViewNode') # midified GC, before was vtkMRMLChartViewNode
                 self.cn = slicer.mrmlScene.AddNode(slicer.vtkMRMLChartNode())
+                print('item added')
                 #self.cvns = slicer.mrmlScene.GetNodesByClass('vtkMRMLPlotChartViewNode')
                 #self.cn = slicer.mrmlScene.AddNode(slicer.vtkMRMLPlotChartNode())
                 self.Chart = True
@@ -1008,7 +1009,7 @@ class dPetBrainQuantificationLogic:
     cn.SetProperty('default', 'yAxisLabel', ylabel)
     cvn = cvns.GetNextItemAsObject()
     if cvn is None:   # added GC
-      cvn = cvns.GetNextItemAsObject(0)  # added GC
+      cvn = slicer.mrmlScene.GetFirstNodeByClass('vtkMRMLChartViewNode') # added GC
     cvn.SetChartNodeID(cn.GetID())
 
   def addChart(self,x,y,Name,cn,cvns):
