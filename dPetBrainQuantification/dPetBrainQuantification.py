@@ -4,7 +4,6 @@ import unittest
 from __main__ import vtk, qt, ctk, slicer
 import sys, string, numpy
 import SimpleITK
-
 from MultiVolumeImporterLib.Helper import Helper
 from DICOM import *
 
@@ -21,7 +20,6 @@ class dPetBrainQuantification:
     parent.acknowledgementText = """
     This work was supported by Comision Sectorial de Investigacion Cientifica (CSIC, Universidad de la Republica, Uruguay) under program "Proyecto de Inclusion Social".""" # replace with organization, grant and thanks.
     self.parent = parent
-    
 class dPetBrainQuantificationWidget:
   def __init__( self, parent=None ):
     if not parent:
@@ -216,8 +214,8 @@ class dPetBrainQuantificationWidget:
     self.pTACSelector.connect('currentIndexChanged(int)', self.onpTACestSelector)
     
     #display Segmentation button
-    getpTAC = qt.QPushButton("get pTAC estimation")
-    getpTAC.toolTip="get selected pTAC estimation"
+    getpTAC = qt.QPushButton("Get pTAC estimation")
+    getpTAC.toolTip="Get selected pTAC estimation"
     getpTAC.connect('clicked(bool)',self.onGetpTAC)
     pTACestimationFormLayout.addWidget(getpTAC)
             
@@ -233,8 +231,10 @@ class dPetBrainQuantificationWidget:
     self.ImportVenousSampleFile.setNameFilter("CSV (*.csv)")
     self.ImportVenousSampleFile.fileSelected.connect(self.onImportVenousSampleFileChanged)
 #
-    #K-Map Options area
-    
+    ####################################################
+    #  K-Map Options area
+    ####################################################
+
     #Voxelwise option checkbox 
     self.KMapVoxelwiseCheckBox = qt.QCheckBox()
     self.KMapVoxelwiseCheckBox.setChecked(1)
@@ -284,7 +284,6 @@ class dPetBrainQuantificationWidget:
     self.ApplyKMap.toolTip="Applies K-Map estimation"
     self.ApplyKMap.connect('clicked(bool)',self.onApplyKmap)
     self.KMapFormLayout.addWidget(self.ApplyKMap)
-    
     #
     # pTAC estimation csv file output
     #
@@ -293,14 +292,6 @@ class dPetBrainQuantificationWidget:
     self.pTACcsvOutputFileDialog.setDefaultSuffix('csv')
     self.pTACcsvOutputFileDialog.fileSelected.connect(self.onpTACcsvOutputFileChanged)
     
-    #Apply All
-    self.ApplyKMap_all = qt.QPushButton("Apply K-Map estimation")
-    self.ApplyKMap_all.toolTip="Applies K-Map estimation"
-    self.ApplyKMap_all.enabled = True
-    self.layout.addWidget(self.ApplyKMap_all)
-    # connections
-    self.ApplyKMap_all.connect('clicked(bool)', self.onApplyKmap)
-    # Add vertical spacer
     self.layout.addStretch(1)
 
   def onImportVenousSampleButtonClicked(self):
@@ -320,10 +311,13 @@ class dPetBrainQuantificationWidget:
       nFrames = self.mvNode.GetNumberOfFrames()
       self.frameSlider.minimum = 0
       self.frameSlider.maximum = nFrames-1
+      self.frameSlider.value = int(nFrames//2)
       self.lastLogic.loadData(self.mvNode)
       self.onSliderChanged()
       self.onCarotidSegmSelector()
       self.onpTACestSelector()
+      if self.cn is not None:
+          self.cn.ClearArrays()
   
   def onSliderChanged(self):
     nframe = int(self.frameSlider.value)
@@ -420,11 +414,8 @@ class dPetBrainQuantificationWidget:
             frameTime = self.lastLogic.frameTime
             if not(self.Chart):
                 self.lns = slicer.mrmlScene.GetNodesByClass('vtkMRMLLayoutNode')
-                self.cvns = slicer.mrmlScene.GetNodesByClass('vtkMRMLChartViewNode') # midified GC, before was vtkMRMLChartViewNode
+                self.cvns = slicer.mrmlScene.GetNodesByClass('vtkMRMLChartViewNode') 
                 self.cn = slicer.mrmlScene.AddNode(slicer.vtkMRMLChartNode())
-                print('item added')
-                #self.cvns = slicer.mrmlScene.GetNodesByClass('vtkMRMLPlotChartViewNode')
-                #self.cn = slicer.mrmlScene.AddNode(slicer.vtkMRMLPlotChartNode())
                 self.Chart = True
             else :
                 self.cn.ClearArrays()  
@@ -486,10 +477,8 @@ class dPetBrainQuantificationWidget:
     #CHART
     if not(self.Chart):
         self.lns = slicer.mrmlScene.GetNodesByClass('vtkMRMLLayoutNode')
-        self.cvns = slicer.mrmlScene.GetNodesByClass('vtkMRMLChartViewNode')  # commented GC
-        self.cn = slicer.mrmlScene.AddNode(slicer.vtkMRMLChartNode())  # commented GC
-        #self.cvns = slicer.mrmlScene.GetNodesByClass('vtkMRMLPlotChartViewNode')
-        #self.cn = slicer.mrmlScene.AddNode(slicer.vtkMRMLPlotChartNode())
+        self.cvns = slicer.mrmlScene.GetNodesByClass('vtkMRMLChartViewNode') 
+        self.cn = slicer.mrmlScene.AddNode(slicer.vtkMRMLChartNode()) 
         self.Chart = True
     else :
         self.cn.ClearArrays()
@@ -565,10 +554,8 @@ class dPetBrainQuantificationWidget:
         #CHART
     if not(self.Chart):
         self.lns = slicer.mrmlScene.GetNodesByClass('vtkMRMLLayoutNode')
-        self.cvns = slicer.mrmlScene.GetNodesByClass('vtkMRMLChartViewNode')  # commented GC
-        self.cn = slicer.mrmlScene.AddNode(slicer.vtkMRMLChartNode())  # commented GC
-        #self.cvns = slicer.mrmlScene.GetNodesByClass('vtkMRMLPlotChartViewNode')
-        #self.cn = slicer.mrmlScene.AddNode(slicer.vtkMRMLPlotChartNode())
+        self.cvns = slicer.mrmlScene.GetNodesByClass('vtkMRMLChartViewNode')  
+        self.cn = slicer.mrmlScene.AddNode(slicer.vtkMRMLChartNode()) 
         self.Chart = True
     else :
         self.cn.ClearArrays()
@@ -710,7 +697,7 @@ class dPetBrainQuantificationLogic:
       IntensityMask[(DTOtsu_array > 1)] = 1
       aCorrelation = self.corrDatapTAC(self.DataMatrix,IntensityMask,pTAC_gen)
       #Correlation threshold is 50% 
-      CorrUm = 0.1  # commented GC, default 0.5
+      CorrUm = 0.5  
       Carotids_array_Mask = numpy.zeros(aCorrelation.size)
       Carotids_array_Mask[(aCorrelation>CorrUm) & (DTOtsu_array == 2)] = 1
             
@@ -769,17 +756,13 @@ class dPetBrainQuantificationLogic:
     Dilate = SimpleITK.BinaryDilateImageFilter()
     Dilate.Ball
     Dilate.SetKernelRadius([2,2,2])
-    #DilateImg = Dilate.Execute(SimpleITK.GetImageFromArray(Carotids_array_Mask))  # commented GC
     DilateImg = Dilate.Execute(SimpleITK.GetImageFromArray(Carotids_array_Mask.astype(numpy.short))) # modified GC
     Dilate_array = SimpleITK.GetArrayFromImage(DilateImg)
     Dilate_array[Carotids_array_Mask > 0] = 2
     Carotids_array_Mask = Dilate_array.reshape(-1)
 
-    #self.mTis = numpy.mean(self.DataMatrix[:, Carotids_array_Mask == 1], axis=1)  # commented GC
-    #self.mCar = numpy.mean(self.DataMatrix[:, Carotids_array_Mask == 2], axis=1)  # commented GC
-
-    self.mTis = numpy.mean(self.DataMatrix[:,(Carotids_array_Mask==1).flatten()],axis = 1)  # commented GC (changed 1 to 0)
-    self.mCar = numpy.mean(self.DataMatrix[:,(Carotids_array_Mask==2).flatten()],axis = 1)  # commented GC (changed 2 to 1)
+    self.mTis = numpy.mean(self.DataMatrix[:,(Carotids_array_Mask==1).flatten()],axis = 1)  
+    self.mCar = numpy.mean(self.DataMatrix[:,(Carotids_array_Mask==2).flatten()],axis = 1) 
 
 
     #Mask Volume
@@ -790,8 +773,7 @@ class dPetBrainQuantificationLogic:
     Mask.SetName(name)
     Mask_Image = Mask.GetImageData()
     Mask_array = vtk.util.numpy_support.vtk_to_numpy(Mask_Image.GetPointData().GetScalars())
-    Mask_array[:] = self.Carotids_array_Mask   # commented GC
-    #Mask_array.data = self.Carotids_array_Mask
+    Mask_array[:] = self.Carotids_array_Mask   
     Mask_Image.Modified()
     #Segmentation Done
     self.CarSegm = True
@@ -799,7 +781,7 @@ class dPetBrainQuantificationLogic:
     #hot voxels index
     peak_index = self.mCar[0:firstFr+1].argmax()
     #sortPeakCarotid = self.DataMatrix[peak_index,Carotids_array_Mask == 2].argsort()  # commented GC
-    sortPeakCarotid = self.DataMatrix[peak_index, (Carotids_array_Mask == 2).flatten()].argsort() # commented GC
+    sortPeakCarotid = self.DataMatrix[peak_index, (Carotids_array_Mask == 2).flatten()].argsort() 
     minIndex = -1 * int(sortPeakCarotid.size*0.05)
     self.hotvoxelsindex = sortPeakCarotid[minIndex:]
     
