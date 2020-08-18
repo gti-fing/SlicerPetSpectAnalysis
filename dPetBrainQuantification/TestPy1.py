@@ -93,7 +93,7 @@ class TestPy1Widget:
     self.helloWorldButton = helloWorldButton
 
   def onHelloWorldButtonClicked(self):
-    print "Hello World !"
+    print("Hello World !")
     
     #frame volume sera el scalar volume de referencia#
     self.__mvNode = self.mvSelector.currentNode()

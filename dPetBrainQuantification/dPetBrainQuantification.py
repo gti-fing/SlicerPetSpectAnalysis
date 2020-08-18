@@ -305,23 +305,25 @@ class dPetBrainQuantificationWidget:
         
   def onInputChanged(self):
     self.mvNode = self.mvSelector.currentNode()
-    if self.mvNode != None:
-      #Helper.SetBgFgVolumes(self.mvNode.GetID(), None)
-      Helper.SetBgFgVolumes(self.mvNode.GetID(), [])
-      nFrames = self.mvNode.GetNumberOfFrames()
-      self.frameSlider.minimum = 0
-      self.frameSlider.maximum = nFrames-1
-      self.frameSlider.value = int(nFrames//2)
-      self.lastLogic.loadData(self.mvNode)
-      self.onSliderChanged()
-      self.onCarotidSegmSelector()
-      self.onpTACestSelector()
-      if self.cn is not None:
+    if self.mvNode is not None:
+      dn = self.mvNode.GetDisplayNode()
+      if dn is not None:
+        #Helper.SetBgFgVolumes(self.mvNode.GetID(), None)
+        Helper.SetBgFgVolumes(self.mvNode.GetID(), [])
+        nFrames = self.mvNode.GetNumberOfFrames()
+        self.frameSlider.minimum = 0
+        self.frameSlider.maximum = nFrames-1
+        self.frameSlider.value = int(nFrames//2)
+        self.lastLogic.loadData(self.mvNode)
+        self.onSliderChanged()
+        self.onCarotidSegmSelector()
+        self.onpTACestSelector()
+        if self.cn is not None:
           self.cn.ClearArrays()
   
   def onSliderChanged(self):
     nframe = int(self.frameSlider.value)
-    if self.mvNode != None :
+    if self.mvNode is not None :
         mvDisplay = self.mvNode.GetDisplayNode()
         mvDisplay.SetFrameComponent(nframe)
         data=slicer.util.array(self.mvNode.GetID())
@@ -489,11 +491,15 @@ class dPetBrainQuantificationWidget:
   def onNiftiParser(self):
     #create new multivolume node
     mvNode=slicer.vtkMRMLMultiVolumeNode()
-    mvNode.SetScene(slicer.mrmlScene)
+    mvDisplayNode=slicer.vtkMRMLMultiVolumeDisplayNode()
     slicer.mrmlScene.AddNode(mvNode)
+    slicer.mrmlScene.AddNode(mvDisplayNode)
+    mvNode.SetAndObserveDisplayNodeID(mvDisplayNode.GetID())
+    mvNode.SetScene(slicer.mrmlScene)
     self.lastLogic.NiftiParser(self.DirSelector.directory,mvNode)
     #auto set the new node as the input volume and add it into the scene
     self.mvSelector.setCurrentNode(mvNode)
+    self.onInputChanged()
       
   def oncsvInputKMapFileButtonClicked(self):
     self.KMapPtacParametersWidget.KMwidgets[2].show()
@@ -792,16 +798,17 @@ class dPetBrainQuantificationLogic:
     #frame time units 
     frameUnits = mvNode.GetAttribute("MultiVolume.FrameIdentifyingDICOMTagUnits")
     #frame string
-    frTimeStr = string.split(mvNode.GetAttribute("MultiVolume.FrameLabels"), ",")
-    frTimeStr = numpy.array(frTimeStr)
-    nFrames = frTimeStr.size
+    #frTimeStr = string.split(mvNode.GetAttribute("MultiVolume.FrameLabels"), ",")  #commented GC
+    frTimeStr = mvNode.GetAttribute("MultiVolume.FrameLabels").split(',')
+    #frTimeStr = numpy.array(frTimeStr)
+    nFrames = len(frTimeStr) 
     
     #get dimensions and set global variables
     mvImageData = mvNode.GetImageData()
     self.Dim = mvImageData.GetDimensions()
     nVoxels = self.Dim[0]*self.Dim[1]*self.Dim[2]
     
-    self.frameTime = numpy.zeros([frTimeStr.size])
+    self.frameTime = numpy.zeros([len(frTimeStr)])
     self.DataMatrix = numpy.zeros([nFrames , nVoxels])
     
     # save frame Data and frameTime vector
@@ -1171,7 +1178,7 @@ class dPetBrainQuantificationLogic:
     x = numpy.float32(time)
     D = numpy.vstack([x, numpy.ones(len(x))]).T
     # mx + c = y 
-    m,c = numpy.linalg.lstsq(D, y)[0]
+    m,c = numpy.linalg.lstsq(D, y, rcond=None)[0]
     a = numpy.exp(c)
     b = m
     return a,b
@@ -1245,7 +1252,7 @@ class dPetBrainQuantificationLogic:
     if len(X)<2:
         return 0
     A = numpy.vstack([X, numpy.ones(len(X))]).T      
-    K, Vo = numpy.linalg.lstsq(A, Y)[0]
+    K, Vo = numpy.linalg.lstsq(A, Y, rcond=None)[0]
     deviation=numpy.abs((Y-K*X-Vo)/Vo)
     ind=deviation<tolerance
     #Final estimator
@@ -1255,7 +1262,7 @@ class dPetBrainQuantificationLogic:
     if len(X_2)<2:
        return 0
     A = numpy.vstack([X_2, numpy.ones(len(X_2))]).T      
-    K, Vo = numpy.linalg.lstsq(A, Y_2)[0]
+    K, Vo = numpy.linalg.lstsq(A, Y_2, rcond=None)[0]
     K=numpy.max([K,0])
     return K*10**6 
     
@@ -1340,7 +1347,8 @@ class dPetBrainQuantificationLogic:
     file.readline() #ignore title line
     frames=[]
     for line in file:
-        frTimeStr = numpy.array(string.split(line," "))
+        #frTimeStr = numpy.array(string.split(line," "))
+        frTimeStr = line.split(" ")
         frames.append(frTimeStr[1]) #append the end frame value
     frames=numpy.array(frames)
     frames=frames.astype(int)  
