@@ -1398,9 +1398,9 @@ class dPetBrainQuantificationLogic:
       return self.pTAC_est
     elif pTACOption == 'FromFile':
       if not(numpy.allclose(tpTAC,self.frameTime,rtol=0.01)): #compare the time vectors to see if they match
-        print 'WARNING, sample times do not match up with frame end times, attempting interpolation, this may compromise the estimation'
+        print('WARNING, sample times do not match up with frame end times, attempting interpolation, this may compromise the estimation')
         #print pTAC
-        print numpy.interp(self.frameTime, tpTAC, pTAC, left=0)
+        #print(numpy.interp(self.frameTime, tpTAC, pTAC, left=0))
         return numpy.interp(self.frameTime, tpTAC, pTAC, left=0)
       else:
         return pTAC
