@@ -19,7 +19,7 @@ include(${Slicer_USE_FILE})
 #-----------------------------------------------------------------------------
 # Extension modules
 add_subdirectory(dPetBrainQuantification)
-add_subdirectory(SlicerEpilepsyToolkit/EpileptogenicFocusDetection)
+# add_subdirectory(SlicerEpilepsyToolkit/EpileptogenicFocusDetection)
 ## NEXT_MODULE
 
 #-----------------------------------------------------------------------------
